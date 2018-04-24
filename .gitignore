@@ -1,6 +1,9 @@
 # Compiled class file
 *.class
 
+*.iml
+/target
+
 # Log file
 *.log
 
@@ -20,3 +23,22 @@
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+
+/.project
+/.settings/org.eclipse.m2e.core.prefs
+/.settings
+/.classpath
+*.iml
+*.ipr
+/.idea
+/client-utils/.settings
+/client-utils/.classpath
+/client-utils/.project
+/client-maven-enforcer/.project
+/client-maven-enforcer/.classpath
+/client-maven-enforcer/.settings
+/client-errors/.settings
+/client-errors/.classpath
+/client-errors/.project
+.DS_Store
+
