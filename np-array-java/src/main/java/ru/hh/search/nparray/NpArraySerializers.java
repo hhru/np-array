@@ -1,6 +1,8 @@
 package ru.hh.search.nparray;
 
 
+import static java.lang.Math.min;
+
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -138,8 +140,8 @@ public class NpArraySerializers {
       floatNamesRead(fis, floatSize, npArrays, offsetArrayInt, offsetNameFloat, offsetArrayFloat);
 
       if (!onlyHeaders) {
-        readArrayInt(bytes4, fis, intSize, npArrays, rowsInt, columnInt);
-        readArrayFloat(bytes4, fis, floatSize, npArrays, rowsFloat, columnFloat);
+        readArrayInt(fis, intSize, npArrays, rowsInt, columnInt);
+        readArrayFloat(fis, floatSize, npArrays, rowsFloat, columnFloat);
       }
 
       return npArrays;
@@ -157,11 +159,15 @@ public class NpArraySerializers {
     ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
     for (int i = 0; i < arrays.floatPosition; i++) {
       for (int j = 0; j < arrays.floatsArrays[i].length; j++) {
-        for (int n = 0; n < arrays.floatsArrays[i][0].length; n++) {
+        for (int n = 0; n < arrays.floatsArrays[i][j].length; n++) {
           float elem = arrays.floatsArrays[i][j][n];
           if (i + 1 == arrays.floatPosition
                   && j + 1 == arrays.floatsArrays[i].length
-                  && n + 1 == arrays.floatsArrays[i][0].length) {
+                  && n + 1 == arrays.floatsArrays[i][j].length) {
+            if (!byteBuffer.hasRemaining()){
+              fos.write(byteBuffer.array());
+              byteBuffer.clear();
+            }
             byteBuffer.putFloat(elem);
             byte[] bytes = new byte[byteBuffer.position()];
             System.arraycopy(byteBuffer.array(), 0, bytes, 0, byteBuffer.position());
@@ -171,6 +177,7 @@ public class NpArraySerializers {
           } else {
             fos.write(byteBuffer.array());
             byteBuffer.clear();
+            byteBuffer.putFloat(elem);
           }
         }
       }
@@ -182,11 +189,15 @@ public class NpArraySerializers {
     ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
     for (int i = 0; i < arrays.intPosition; i++) {
       for (int j = 0; j < arrays.intsArrays[i].length; j++) {
-        for (int n = 0; n < arrays.intsArrays[i][0].length; n++) {
+        for (int n = 0; n < arrays.intsArrays[i][j].length; n++) {
           int elem = arrays.intsArrays[i][j][n];
           if (i + 1 == arrays.intPosition
                   && j + 1 == arrays.intsArrays[i].length
-                  && n + 1 == arrays.intsArrays[i][0].length) {
+                  && n + 1 == arrays.intsArrays[i][j].length) {
+            if (!byteBuffer.hasRemaining()){
+              fos.write(byteBuffer.array());
+              byteBuffer.clear();
+            }
             byteBuffer.putInt(elem);
             byte[] bytes = new byte[byteBuffer.position()];
             System.arraycopy(byteBuffer.array(), 0, bytes, 0, byteBuffer.position());
@@ -196,6 +207,7 @@ public class NpArraySerializers {
           } else {
             fos.write(byteBuffer.array());
             byteBuffer.clear();
+            byteBuffer.putInt(elem);
           }
         }
       }
@@ -230,30 +242,53 @@ public class NpArraySerializers {
     }
   }
 
-  private static void readArrayFloat(byte[] bytes4, FileInputStream fis, int floatSize, NpArrays npArrays, int[] rowsFloat, int[] columnFloat) throws IOException {
+  private static void readArrayFloat(FileInputStream fis, int floatSize, NpArrays npArrays, int[] rowsFloat, int[] columnFloat) throws IOException {
+    ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
     for (int i = 0; i < floatSize; i++) {
       npArrays.floatsArrays[i] = new float[rowsFloat[i]][columnFloat[i]];
       for (int j = 0; j < rowsFloat[i]; j++) {
-        for (int n = 0; n < columnFloat[i]; n++) {
-          fis.read(bytes4);
-          npArrays.floatsArrays[i][j][n] = bytesToFloat(bytes4);
+        int n = 0;
+        while (n < columnFloat[i]) {
+          int remaining = columnFloat[i] - n;
+          byte[] bytes = new byte[min(remaining * 4, BUFFER_SIZE)];
+          fis.read(bytes);
+          byteBuffer.limit(min(remaining * 4, BUFFER_SIZE));
+          byteBuffer.put(bytes);
+          byteBuffer.position(0);
+          while (byteBuffer.hasRemaining()) {
+            npArrays.floatsArrays[i][j][n] = byteBuffer.getFloat();
+            n++;
+          }
+          byteBuffer.clear();
         }
+        byteBuffer.clear();
       }
     }
   }
 
-  private static void readArrayInt(byte[] bytes4, FileInputStream fis, int intSize, NpArrays npArrays, int[] rowsInt, int[] columnInt) throws IOException {
+  private static void readArrayInt(FileInputStream fis, int intSize, NpArrays npArrays, int[] rowsInt, int[] columnInt) throws IOException {
+    ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
     for (int i = 0; i < intSize; i++) {
       npArrays.intsArrays[i] = new int[rowsInt[i]][columnInt[i]];
       for (int j = 0; j < rowsInt[i]; j++) {
-        for (int n = 0; n < columnInt[i]; n++) {
-          fis.read(bytes4);
-          npArrays.intsArrays[i][j][n] = bytesToInt(bytes4);
+        int n = 0;
+        while (n < columnInt[i]) {
+          int remaining = columnInt[i] - n;
+          byte[] bytes = new byte[min(remaining * 4, BUFFER_SIZE)];
+          fis.read(bytes);
+          byteBuffer.limit(min(remaining * 4, BUFFER_SIZE));
+          byteBuffer.put(bytes);
+          byteBuffer.position(0);
+          while (byteBuffer.hasRemaining()) {
+            npArrays.intsArrays[i][j][n] = byteBuffer.getInt();
+            n++;
+          }
+          byteBuffer.clear();
         }
+        byteBuffer.clear();
       }
     }
   }
-
 
   private static void readMetadata(byte[] bytes, byte[] bytesAll, byte[] bytes4, byte[] bytes8, FileInputStream fis, int[] rowsFloat, int[] columnFloat, long[] offsetNameFloat, long[] offsetArrayFloat, int counter) throws IOException {
     while (true) {
@@ -314,13 +349,5 @@ public class NpArraySerializers {
     buffer.put(bytes);
     buffer.flip();
     return buffer.getLong();
-  }
-
-  private static float bytesToFloat(byte[] bytes) {
-    ByteBuffer buffer = ByteBuffer.allocate(Float.BYTES);
-    buffer.order(ByteOrder.BIG_ENDIAN);
-    buffer.put(bytes);
-    buffer.flip();
-    return buffer.getFloat();
   }
 }

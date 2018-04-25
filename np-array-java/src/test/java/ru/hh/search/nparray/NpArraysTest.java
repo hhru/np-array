@@ -44,6 +44,16 @@ public class NpArraysTest {
     Files.delete(Paths.get("123"));
   }
 
+  private void printFloatArray(float[][] floatArray) {
+    for (int i = 0; i < floatArray.length; i++) {
+      for (int j = 0; j < floatArray[0].length; j++) {
+        System.out.print(floatArray[j][i] + " ");
+      }
+      System.out.println();
+    }
+    System.out.println();
+  }
+
   @Test(expected = NullPointerException.class)
   public void testOnlyHeaders() throws IOException {
     NpArrays npArrays = new NpArrays();
@@ -65,9 +75,20 @@ public class NpArraysTest {
   }
 
   @Test
+  public void onlyFloatsSmall() throws IOException {
+    NpArrays npArrays = new NpArrays();
+    float[][] floats = generateArrayFloat(2, 2, 2.4f);
+    npArrays.add(floats, "10_10_2.4");
+    NpArraySerializers.serialize(npArrays, Paths.get("123"));
+    NpArrays newNpArrays = NpArraySerializers.deserialize(Paths.get("123"));
+    assertArrayEquals(floats, newNpArrays.getFloatArray("10_10_2.4"));
+    Files.delete(Paths.get("123"));
+  }
+
+  @Test
   public void onlyFloats() throws IOException {
     NpArrays npArrays = new NpArrays();
-    float[][] floats = generateArrayFloat(100, 100, 2.4f);
+    float[][] floats = generateArrayFloat(3, 3, 2.4f);
     npArrays.add(floats, "10_10_2.4");
     NpArraySerializers.serialize(npArrays, Paths.get("123"));
     NpArrays newNpArrays = NpArraySerializers.deserialize(Paths.get("123"));
@@ -106,7 +127,7 @@ public class NpArraysTest {
     float[][] floats = new float[row][column];
     for (int i = 0; i < column; i++) {
       for (int j = 0; j < row; j++) {
-        floats[j][i] = elem;
+        floats[j][i] = elem + (1 + i) * (j + 1);
       }
     }
     return floats;
