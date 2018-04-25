@@ -13,6 +13,7 @@ public class NpArraySerializers {
   private final static byte BLOCK_DELIMITER = '\n';
   private final static int BYTES_4 = 4;
   private final static int BYTES_8 = 8;
+  private final static int BUFFER_SIZE = 8192 * 2;
 
   /*
     HEADER                24 byte
@@ -133,8 +134,8 @@ public class NpArraySerializers {
       // FLOAT META READ
       readMetadata(bytes, bytesAll, bytes4, bytes8, fis, rowsFloat, columnFloat, offsetNameFloat, offsetArrayFloat, counter);
 
-      intNamesRead(fis, intSize, npArrays, offsetNameInt, offsetNameFloat);
-      floatNamesRead(fis, floatSize, npArrays, offsetArrayInt, offsetNameFloat);
+      intNamesRead(fis, intSize, npArrays, offsetNameInt, offsetNameFloat, offsetArrayInt);
+      floatNamesRead(fis, floatSize, npArrays, offsetArrayInt, offsetNameFloat, offsetArrayFloat);
 
       if (!onlyHeaders) {
         readArrayInt(bytes4, fis, intSize, npArrays, rowsInt, columnInt);
@@ -151,33 +152,61 @@ public class NpArraySerializers {
     }
   }
 
+
   private static void floatArrayWrite(NpArrays arrays, FileOutputStream fos) throws IOException {
+    ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
     for (int i = 0; i < arrays.floatPosition; i++) {
       for (int j = 0; j < arrays.floatsArrays[i].length; j++) {
         for (int n = 0; n < arrays.floatsArrays[i][0].length; n++) {
           float elem = arrays.floatsArrays[i][j][n];
-          fos.write(floatToBytes(elem));
+          if (i + 1 == arrays.floatPosition
+                  && j + 1 == arrays.floatsArrays[i].length
+                  && n + 1 == arrays.floatsArrays[i][0].length) {
+            byteBuffer.putFloat(elem);
+            byte[] bytes = new byte[byteBuffer.position()];
+            System.arraycopy(byteBuffer.array(), 0, bytes, 0, byteBuffer.position());
+            fos.write(bytes);
+          } else if (byteBuffer.hasRemaining()) {
+            byteBuffer.putFloat(elem);
+          } else {
+            fos.write(byteBuffer.array());
+            byteBuffer.clear();
+          }
         }
       }
     }
   }
 
+
   private static void intArrayWrite(NpArrays arrays, FileOutputStream fos) throws IOException {
+    ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
     for (int i = 0; i < arrays.intPosition; i++) {
       for (int j = 0; j < arrays.intsArrays[i].length; j++) {
         for (int n = 0; n < arrays.intsArrays[i][0].length; n++) {
           int elem = arrays.intsArrays[i][j][n];
-          fos.write(intToBytes(elem));
+          if (i + 1 == arrays.intPosition
+                  && j + 1 == arrays.intsArrays[i].length
+                  && n + 1 == arrays.intsArrays[i][0].length) {
+            byteBuffer.putInt(elem);
+            byte[] bytes = new byte[byteBuffer.position()];
+            System.arraycopy(byteBuffer.array(), 0, bytes, 0, byteBuffer.position());
+            fos.write(bytes);
+          } else if (byteBuffer.hasRemaining()) {
+            byteBuffer.putInt(elem);
+          } else {
+            fos.write(byteBuffer.array());
+            byteBuffer.clear();
+          }
         }
       }
     }
   }
 
-  private static void floatNamesRead(FileInputStream fis, int floatSize, NpArrays npArrays, long[] offsetArrayInt, long[] offsetNameFloat) throws IOException {
+  private static void floatNamesRead(FileInputStream fis, int floatSize, NpArrays npArrays, long[] offsetArrayInt, long[] offsetNameFloat, long[] offsetArrayFloat) throws IOException {
     for (int i = 0; i < floatSize; i++) {
       long size;
       if (i + 1 == floatSize) {
-        size = offsetArrayInt[0] - offsetNameFloat[i];
+        size = (offsetArrayInt.length != 0 ? offsetArrayInt[0] : offsetArrayFloat[0]) - offsetNameFloat[i];
       } else {
         size = offsetNameFloat[i + 1] - offsetNameFloat[i];
       }
@@ -187,11 +216,11 @@ public class NpArraySerializers {
     }
   }
 
-  private static void intNamesRead(FileInputStream fis, int intSize, NpArrays npArrays, long[] offsetNameInt, long[] offsetNameFloat) throws IOException {
+  private static void intNamesRead(FileInputStream fis, int intSize, NpArrays npArrays, long[] offsetNameInt, long[] offsetNameFloat, long[] offsetArrayInt) throws IOException {
     for (int i = 0; i < intSize; i++) {
       long size;
       if (i + 1 == intSize) {
-        size = offsetNameFloat[0] - offsetNameInt[i];
+        size = (offsetNameFloat.length != 0 ? offsetNameFloat[0] : offsetArrayInt[0]) - offsetNameInt[i];
       } else {
         size = offsetNameInt[i + 1] - offsetNameInt[i];
       }
@@ -287,13 +316,6 @@ public class NpArraySerializers {
     return buffer.getLong();
   }
 
-  private static byte[] floatToBytes(float x) {
-    ByteBuffer buffer = ByteBuffer.allocate(Float.BYTES);
-    buffer.order(ByteOrder.BIG_ENDIAN);
-    buffer.putFloat(x);
-    return buffer.array();
-  }
-
   private static float bytesToFloat(byte[] bytes) {
     ByteBuffer buffer = ByteBuffer.allocate(Float.BYTES);
     buffer.order(ByteOrder.BIG_ENDIAN);
@@ -301,6 +323,4 @@ public class NpArraySerializers {
     buffer.flip();
     return buffer.getFloat();
   }
-
-
 }

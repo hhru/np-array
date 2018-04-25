@@ -10,18 +10,16 @@ import java.nio.file.Paths;
 
 public class NpArraysTest {
 
-
-
   @Test
   public void testSerializer() throws IOException, ClassNotFoundException {
     NpArrays npArrays = new NpArrays();
-    float[][] floats1 = generateArrayFloat(11, 10, 2.4f);
+    float[][] floats1 = generateArrayFloat(2, 2, 2.4f);
     npArrays.add(floats1, "10_10_2.4");
-    float[][] floats2 = generateArrayFloat(23, 20, -5.2f);
+    float[][] floats2 = generateArrayFloat(2, 2, -5.2f);
     npArrays.add(floats2, "20_20_5.2");
-    int[][] ints1 = generateArrayInt(22, 21, 5);
+    int[][] ints1 = generateArrayInt(2, 2, 5);
     npArrays.add(ints1, "20_20_5");
-    int[][] ints2 = generateArrayInt(22, 22, -6);
+    int[][] ints2 = generateArrayInt(2, 2, -6);
     npArrays.add(ints2, "20_20_6");
 
     assertArrayEquals(floats1, npArrays.getFloatArray("10_10_2.4"));
@@ -64,6 +62,44 @@ public class NpArraysTest {
     Files.delete(Paths.get("123"));
 
     float[] npe = headersNpArrays.floatsArrays[0][0];
+  }
+
+  @Test
+  public void onlyFloats() throws IOException {
+    NpArrays npArrays = new NpArrays();
+    float[][] floats = generateArrayFloat(100, 100, 2.4f);
+    npArrays.add(floats, "10_10_2.4");
+    NpArraySerializers.serialize(npArrays, Paths.get("123"));
+    NpArrays newNpArrays = NpArraySerializers.deserialize(Paths.get("123"));
+    assertArrayEquals(floats, newNpArrays.getFloatArray("10_10_2.4"));
+    Files.delete(Paths.get("123"));
+  }
+
+  @Test
+  public void onlyIntegers() throws IOException {
+    NpArrays npArrays = new NpArrays();
+    int[][] ints = generateArrayInt(100, 100, 2);
+    npArrays.add(ints, "10_10_2.4");
+    NpArraySerializers.serialize(npArrays, Paths.get("123"));
+    NpArrays newNpArrays = NpArraySerializers.deserialize(Paths.get("123"));
+    assertArrayEquals(ints, newNpArrays.getIntArray("10_10_2.4"));
+    Files.delete(Paths.get("123"));
+  }
+
+  @Test
+  public void loadTest() throws IOException {
+    NpArrays npArrays = new NpArrays();
+    float[][] floats = generateArrayFloat(100000, 100, 2.4f);
+    npArrays.add(floats, "10_10_2.4");
+    long time = System.nanoTime();
+    System.out.println("Start serialize");
+    NpArraySerializers.serialize(npArrays, Paths.get("123"));
+    System.out.println("Finish serialize: " + ((System.nanoTime() - time)/1000_000));
+    time = System.nanoTime();
+    NpArrays newNpArrays = NpArraySerializers.deserialize(Paths.get("123"));
+    System.out.println("Finish deserialize: " + ((System.nanoTime() - time)/1000_000));
+    assertArrayEquals(floats, newNpArrays.getFloatArray("10_10_2.4"));
+
   }
 
   private float[][] generateArrayFloat(int column, int row, float elem) {
