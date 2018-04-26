@@ -160,27 +160,32 @@ public class NpArraySerializers {
     for (int i = 0; i < arrays.floatPosition; i++) {
       for (int j = 0; j < arrays.floatsArrays[i].length; j++) {
         for (int n = 0; n < arrays.floatsArrays[i][j].length; n++) {
-          float elem = arrays.floatsArrays[i][j][n];
-          if (i + 1 == arrays.floatPosition
-                  && j + 1 == arrays.floatsArrays[i].length
-                  && n + 1 == arrays.floatsArrays[i][j].length) {
-            if (!byteBuffer.hasRemaining()){
-              fos.write(byteBuffer.array());
-              byteBuffer.clear();
-            }
-            byteBuffer.putFloat(elem);
-            byte[] bytes = new byte[byteBuffer.position()];
-            System.arraycopy(byteBuffer.array(), 0, bytes, 0, byteBuffer.position());
-            fos.write(bytes);
-          } else if (byteBuffer.hasRemaining()) {
-            byteBuffer.putFloat(elem);
-          } else {
-            fos.write(byteBuffer.array());
-            byteBuffer.clear();
-            byteBuffer.putFloat(elem);
-          }
+          writeFloats(arrays, fos, byteBuffer, i, j, n);
         }
       }
+    }
+  }
+
+  private static void writeFloats(NpArrays arrays, FileOutputStream fos, ByteBuffer byteBuffer, int i, int j, int n) throws IOException {
+    float elem = arrays.floatsArrays[i][j][n];
+    if (i + 1 == arrays.floatPosition
+            && j + 1 == arrays.floatsArrays[i].length
+            && n + 1 == arrays.floatsArrays[i][j].length) {
+      if (!byteBuffer.hasRemaining()){
+        fos.write(byteBuffer.array());
+        byteBuffer.clear();
+      }
+      byteBuffer.putFloat(elem);
+      byte[] bytes = new byte[byteBuffer.position()];
+      byteBuffer.rewind();
+      byteBuffer.get(bytes);
+      fos.write(bytes);
+    } else if (byteBuffer.hasRemaining()) {
+      byteBuffer.putFloat(elem);
+    } else {
+      fos.write(byteBuffer.array());
+      byteBuffer.clear();
+      byteBuffer.putFloat(elem);
     }
   }
 
@@ -190,27 +195,32 @@ public class NpArraySerializers {
     for (int i = 0; i < arrays.intPosition; i++) {
       for (int j = 0; j < arrays.intsArrays[i].length; j++) {
         for (int n = 0; n < arrays.intsArrays[i][j].length; n++) {
-          int elem = arrays.intsArrays[i][j][n];
-          if (i + 1 == arrays.intPosition
-                  && j + 1 == arrays.intsArrays[i].length
-                  && n + 1 == arrays.intsArrays[i][j].length) {
-            if (!byteBuffer.hasRemaining()){
-              fos.write(byteBuffer.array());
-              byteBuffer.clear();
-            }
-            byteBuffer.putInt(elem);
-            byte[] bytes = new byte[byteBuffer.position()];
-            System.arraycopy(byteBuffer.array(), 0, bytes, 0, byteBuffer.position());
-            fos.write(bytes);
-          } else if (byteBuffer.hasRemaining()) {
-            byteBuffer.putInt(elem);
-          } else {
-            fos.write(byteBuffer.array());
-            byteBuffer.clear();
-            byteBuffer.putInt(elem);
-          }
+          writeInts(arrays, fos, byteBuffer, i, j, n);
         }
       }
+    }
+  }
+
+  private static void writeInts(NpArrays arrays, FileOutputStream fos, ByteBuffer byteBuffer, int i, int j, int n) throws IOException {
+    int elem = arrays.intsArrays[i][j][n];
+    if (i + 1 == arrays.intPosition
+            && j + 1 == arrays.intsArrays[i].length
+            && n + 1 == arrays.intsArrays[i][j].length) {
+      if (!byteBuffer.hasRemaining()){
+        fos.write(byteBuffer.array());
+        byteBuffer.clear();
+      }
+      byteBuffer.putInt(elem);
+      byte[] bytes = new byte[byteBuffer.position()];
+      byteBuffer.rewind();
+      byteBuffer.get(bytes);
+      fos.write(bytes);
+    } else if (byteBuffer.hasRemaining()) {
+      byteBuffer.putInt(elem);
+    } else {
+      fos.write(byteBuffer.array());
+      byteBuffer.clear();
+      byteBuffer.putInt(elem);
     }
   }
 
@@ -254,7 +264,7 @@ public class NpArraySerializers {
           fis.read(bytes);
           byteBuffer.limit(min(remaining * 4, BUFFER_SIZE));
           byteBuffer.put(bytes);
-          byteBuffer.position(0);
+          byteBuffer.rewind();
           while (byteBuffer.hasRemaining()) {
             npArrays.floatsArrays[i][j][n] = byteBuffer.getFloat();
             n++;
@@ -278,7 +288,7 @@ public class NpArraySerializers {
           fis.read(bytes);
           byteBuffer.limit(min(remaining * 4, BUFFER_SIZE));
           byteBuffer.put(bytes);
-          byteBuffer.position(0);
+          byteBuffer.rewind();
           while (byteBuffer.hasRemaining()) {
             npArrays.intsArrays[i][j][n] = byteBuffer.getInt();
             n++;
