@@ -16,6 +16,7 @@ public class NpArraySerializers {
   private final static int BYTES_4 = 4;
   private final static int BYTES_8 = 8;
   private final static int BUFFER_SIZE = 8192 * 2;
+  private final static ByteOrder BYTE_ORDER = ByteOrder.BIG_ENDIAN;
 
   /*
     HEADER                24 byte
@@ -157,6 +158,7 @@ public class NpArraySerializers {
 
   private static void floatArrayWrite(NpArrays arrays, FileOutputStream fos) throws IOException {
     ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+    byteBuffer.order(BYTE_ORDER);
     for (int i = 0; i < arrays.floatPosition; i++) {
       for (int j = 0; j < arrays.floatsArrays[i].length; j++) {
         for (int n = 0; n < arrays.floatsArrays[i][j].length; n++) {
@@ -171,7 +173,7 @@ public class NpArraySerializers {
     if (i + 1 == arrays.floatPosition
             && j + 1 == arrays.floatsArrays[i].length
             && n + 1 == arrays.floatsArrays[i][j].length) {
-      if (!byteBuffer.hasRemaining()){
+      if (!byteBuffer.hasRemaining()) {
         fos.write(byteBuffer.array());
         byteBuffer.clear();
       }
@@ -192,6 +194,7 @@ public class NpArraySerializers {
 
   private static void intArrayWrite(NpArrays arrays, FileOutputStream fos) throws IOException {
     ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+    byteBuffer.order(BYTE_ORDER);
     for (int i = 0; i < arrays.intPosition; i++) {
       for (int j = 0; j < arrays.intsArrays[i].length; j++) {
         for (int n = 0; n < arrays.intsArrays[i][j].length; n++) {
@@ -254,6 +257,7 @@ public class NpArraySerializers {
 
   private static void readArrayFloat(FileInputStream fis, int floatSize, NpArrays npArrays, int[] rowsFloat, int[] columnFloat) throws IOException {
     ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+    byteBuffer.order(BYTE_ORDER);
     for (int i = 0; i < floatSize; i++) {
       npArrays.floatsArrays[i] = new float[rowsFloat[i]][columnFloat[i]];
       for (int j = 0; j < rowsFloat[i]; j++) {
@@ -278,6 +282,7 @@ public class NpArraySerializers {
 
   private static void readArrayInt(FileInputStream fis, int intSize, NpArrays npArrays, int[] rowsInt, int[] columnInt) throws IOException {
     ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+    byteBuffer.order(BYTE_ORDER);
     for (int i = 0; i < intSize; i++) {
       npArrays.intsArrays[i] = new int[rowsInt[i]][columnInt[i]];
       for (int j = 0; j < rowsInt[i]; j++) {
