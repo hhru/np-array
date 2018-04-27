@@ -5,6 +5,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 
@@ -54,26 +55,6 @@ public class NpArraysTest {
     System.out.println();
   }
 
-  @Test(expected = NullPointerException.class)
-  public void testOnlyHeaders() throws IOException {
-    NpArrays npArrays = new NpArrays();
-    float[][] floats1 = generateArrayFloat(11, 10, 2.4f);
-    npArrays.add(floats1, "10_10_2.4");
-    float[][] floats2 = generateArrayFloat(23, 20, -5.2f);
-    npArrays.add(floats2, "20_20_5.2");
-    int[][] ints1 = generateArrayInt(22, 21, 5);
-    npArrays.add(ints1, "20_20_5");
-    int[][] ints2 = generateArrayInt(22, 22, -6);
-    npArrays.add(ints2, "20_20_6");
-
-    NpArraySerializers.serialize(npArrays, Paths.get("123"));
-    NpArrays headersNpArrays = NpArraySerializers.deserialize(Paths.get("123"), true);
-
-    Files.delete(Paths.get("123"));
-
-    float[] npe = headersNpArrays.floatsArrays[0][0];
-  }
-
   @Test
   public void onlyFloatsSmall() throws IOException {
     NpArrays npArrays = new NpArrays();
@@ -121,6 +102,29 @@ public class NpArraysTest {
     System.out.println("Finish deserialize: " + ((System.nanoTime() - time)/1000_000));
     assertArrayEquals(floats, newNpArrays.getFloatArray("10_10_2.4"));
 
+  }
+
+
+  @Test
+  public void partitionReadTest() throws IOException {
+    NpArrays npArrays = new NpArrays();
+    Path path = Paths.get("123");
+    float[][] floats1 = generateArrayFloat(2, 2, 2.4f);
+    npArrays.add(floats1, "10_10_2.4");
+    float[][] floats2 = generateArrayFloat(2, 2, -5.2f);
+    npArrays.add(floats2, "20_20_5.2");
+    int[][] ints1 = generateArrayInt(2, 2, 5);
+    npArrays.add(ints1, "20_20_5");
+    int[][] ints2 = generateArrayInt(2, 2, -6);
+    npArrays.add(ints2, "20_20_6");
+    NpArraySerializers.serialize(npArrays, path);
+    NpHeaders headers = NpArraySerializers.getOnlyHeaders(path);
+
+    float[][] newFloats2 = NpArraySerializers.getFloatArray(path, headers, "20_20_5.2");
+    int[][] newInts2 = NpArraySerializers.getIntArray(path, headers, "20_20_6");
+
+    assertArrayEquals(floats2, newFloats2);
+    assertArrayEquals(ints2, newInts2);
   }
 
   private float[][] generateArrayFloat(int column, int row, float elem) {

@@ -2,20 +2,13 @@ package ru.hh.search.nparray;
 
 import java.util.Arrays;
 
-public class NpArrays {
-
-  protected int intPosition = 0;
-  protected int floatPosition = 0;
-
-  protected String[] nameIntArrays;
-  protected String[] nameFloatArrays;
+public class NpArrays extends NpBase {
 
   protected float[][][] floatsArrays;
   protected int[][][] intsArrays;
 
   public NpArrays(int initSizeInt, int initSizeFloat) {
-    nameFloatArrays = new String[initSizeFloat];
-    nameIntArrays = new String[initSizeInt];
+    super(initSizeInt, initSizeFloat);
     floatsArrays = new float[initSizeFloat][][];
     intsArrays = new int[initSizeInt][][];
   }

@@ -101,15 +101,99 @@ public class NpArraySerializers {
   }
 
   public static NpArrays deserialize(Path path) throws IOException {
-    return deserialize(path, false);
+    return (NpArrays) deserialize(path, false);
   }
 
-  public static NpArrays deserialize(Path path, boolean onlyHeaders) throws IOException {
+  public static NpHeaders getOnlyHeaders(Path path) throws IOException {
+    return (NpHeaders) deserialize(path, true);
+  }
+
+  public static float[][] getFloatArray(Path path, NpHeaders headers, String key) throws IOException {
+    ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+    int n = getKey(headers.nameFloatArrays, key);
+    float[][] result;
+
+    try (FileInputStream fis = new FileInputStream(path.toString())) {
+      long positionStart = headers.offsetArrayFloat[n];
+      fis.skip(positionStart);
+      result = new float[headers.rowsFloat[n]][headers.rowsFloat[n]];
+      for (int i = 0; i < headers.rowsFloat[n]; i++) {
+        int j = 0;
+        while (j < headers.columnFloat[n]) {
+          int remaining = headers.columnFloat[n] - j;
+          byte[] bytes = new byte[min(remaining * 4, BUFFER_SIZE)];
+          fis.read(bytes);
+          byteBuffer.limit(min(remaining * 4, BUFFER_SIZE));
+          byteBuffer.put(bytes);
+          byteBuffer.rewind();
+          while (byteBuffer.hasRemaining()) {
+            result[i][j] = byteBuffer.getFloat();
+            j++;
+          }
+          byteBuffer.clear();
+        }
+        byteBuffer.clear();
+      }
+    }
+    return result;
+  }
+
+  public static int[][] getIntArray(Path path, NpHeaders headers, String key) throws IOException {
+    ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+    int n = getKey(headers.nameIntArrays, key);
+    int[][] result;
+
+    try (FileInputStream fis = new FileInputStream(path.toString())) {
+      long positionStart = headers.offsetArrayInt[n];
+      fis.skip(positionStart);
+      result = new int[headers.rowsInt[n]][headers.rowsInt[n]];
+      for (int i = 0; i < headers.rowsInt[n]; i++) {
+        int j = 0;
+        while (j < headers.columnInt[n]) {
+          int remaining = headers.columnInt[n] - j;
+          byte[] bytes = new byte[min(remaining * 4, BUFFER_SIZE)];
+          fis.read(bytes);
+          byteBuffer.limit(min(remaining * 4, BUFFER_SIZE));
+          byteBuffer.put(bytes);
+          byteBuffer.rewind();
+          while (byteBuffer.hasRemaining()) {
+            result[i][j] = byteBuffer.getInt();
+            j++;
+          }
+          byteBuffer.clear();
+        }
+        byteBuffer.clear();
+      }
+    }
+    return result;
+  }
+
+  private static int getKey(String[] names, String key) {
+    if (key == null) {
+      throw new IllegalArgumentException("Key is null");
+    }
+    int n = -1;
+    for (int i = 0; i < names.length; i++) {
+      if (names[i].equals(key)) {
+        n = i;
+        break;
+      }
+    }
+    if (n == -1) {
+      throw new IllegalArgumentException("Key not found");
+    }
+    return n;
+  }
+
+
+  private static NpBase deserialize(Path path, boolean onlyHeaders) throws IOException {
     byte[] bytes = new byte[HEADER_SIZE - 1];
     byte[] bytesAll = new byte[HEADER_SIZE];
 
     byte[] bytes4 = new byte[BYTES_4];
     byte[] bytes8 = new byte[BYTES_8];
+
+    NpBase npBase;
 
     try (FileInputStream fis = new FileInputStream(path.toString())) {
       fis.read(bytes4);
@@ -118,7 +202,11 @@ public class NpArraySerializers {
       int floatSize = bytesToInt(bytes4);
 
 
-      NpArrays npArrays = new NpArrays();
+      if (!onlyHeaders) {
+        npBase = new NpArrays(intSize, floatSize);
+      } else {
+        npBase = new NpHeaders(intSize, floatSize);
+      }
 
       int[] rowsInt = new int[intSize];
       int[] columnInt = new int[intSize];
@@ -137,16 +225,26 @@ public class NpArraySerializers {
       // FLOAT META READ
       readMetadata(bytes, bytesAll, bytes4, bytes8, fis, rowsFloat, columnFloat, offsetNameFloat, offsetArrayFloat, counter);
 
-      intNamesRead(fis, intSize, npArrays, offsetNameInt, offsetNameFloat, offsetArrayInt);
-      floatNamesRead(fis, floatSize, npArrays, offsetArrayInt, offsetNameFloat, offsetArrayFloat);
+      intNamesRead(fis, intSize, npBase, offsetNameInt, offsetNameFloat, offsetArrayInt);
+      floatNamesRead(fis, floatSize, npBase, offsetArrayInt, offsetNameFloat, offsetArrayFloat);
 
       if (!onlyHeaders) {
+        NpArrays npArrays = (NpArrays) npBase;
         readArrayInt(fis, intSize, npArrays, rowsInt, columnInt);
         readArrayFloat(fis, floatSize, npArrays, rowsFloat, columnFloat);
+        npBase = npArrays;
+      } else {
+        NpHeaders npHeaders = (NpHeaders) npBase;
+        npHeaders.setColumnFloat(columnFloat);
+        npHeaders.setColumnInt(columnInt);
+        npHeaders.setRowsFloat(rowsFloat);
+        npHeaders.setRowsInt(rowsInt);
+        npHeaders.setOffsetArrayFloat(offsetArrayFloat);
+        npHeaders.setOffsetArrayInt(offsetArrayInt);
+        npBase = npHeaders;
       }
-
-      return npArrays;
     }
+    return npBase;
   }
 
   private static void namesWrite(FileOutputStream fos, int position, String[] names) throws IOException {
@@ -209,7 +307,7 @@ public class NpArraySerializers {
     if (i + 1 == arrays.intPosition
             && j + 1 == arrays.intsArrays[i].length
             && n + 1 == arrays.intsArrays[i][j].length) {
-      if (!byteBuffer.hasRemaining()){
+      if (!byteBuffer.hasRemaining()) {
         fos.write(byteBuffer.array());
         byteBuffer.clear();
       }
@@ -227,7 +325,7 @@ public class NpArraySerializers {
     }
   }
 
-  private static void floatNamesRead(FileInputStream fis, int floatSize, NpArrays npArrays, long[] offsetArrayInt, long[] offsetNameFloat, long[] offsetArrayFloat) throws IOException {
+  private static void floatNamesRead(FileInputStream fis, int floatSize, NpBase npBase, long[] offsetArrayInt, long[] offsetNameFloat, long[] offsetArrayFloat) throws IOException {
     for (int i = 0; i < floatSize; i++) {
       long size;
       if (i + 1 == floatSize) {
@@ -237,11 +335,11 @@ public class NpArraySerializers {
       }
       byte[] bytesName = new byte[(int) size];
       fis.read(bytesName);
-      npArrays.nameFloatArrays[i] = new String(bytesName);
+      npBase.nameFloatArrays[i] = new String(bytesName);
     }
   }
 
-  private static void intNamesRead(FileInputStream fis, int intSize, NpArrays npArrays, long[] offsetNameInt, long[] offsetNameFloat, long[] offsetArrayInt) throws IOException {
+  private static void intNamesRead(FileInputStream fis, int intSize, NpBase npBase, long[] offsetNameInt, long[] offsetNameFloat, long[] offsetArrayInt) throws IOException {
     for (int i = 0; i < intSize; i++) {
       long size;
       if (i + 1 == intSize) {
@@ -251,7 +349,7 @@ public class NpArraySerializers {
       }
       byte[] bytesName = new byte[(int) size];
       fis.read(bytesName);
-      npArrays.nameIntArrays[i] = new String(bytesName);
+      npBase.nameIntArrays[i] = new String(bytesName);
     }
   }
 
@@ -349,6 +447,14 @@ public class NpArraySerializers {
     buffer.put(bytes);
     buffer.flip();
     return buffer.getInt();
+  }
+
+  private static float bytesToFloat(byte[] bytes) {
+    ByteBuffer buffer = ByteBuffer.allocate(Float.BYTES);
+    buffer.order(ByteOrder.BIG_ENDIAN);
+    buffer.put(bytes);
+    buffer.flip();
+    return buffer.getFloat();
   }
 
   private static byte[] longToBytes(long x) {
