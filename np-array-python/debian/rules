@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+
+export PYBUILD_NAME = nparray
+
+%:
+	dh $@ --with python2 --buildsystem=pybuild
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf build .*egg-info *.log *.pid .coverage
+
+test-python%:
+	python$* setup.py test || exit 1

@@ -42,3 +42,5 @@ hs_err_pid*
 /client-errors/.project
 .DS_Store
 
+*.pyc
+*.iml
