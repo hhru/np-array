@@ -1,3 +1,9 @@
+hh-nparray (0.0.2) unstable; urgency=low
+
+  * Fix dependencies
+
+ --  <d.smirnov@hh.ru>  Fri, 04 May 2018 16:57:36 +0300
+
 hh-nparray (0.0.1) unstable; urgency=low
 
   * Initial release.

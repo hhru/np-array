@@ -10,8 +10,5 @@ setup(
     packages=[
         'nparray'
     ],
-    install_requires=[
-        'numpy',
-    ],
     zip_safe=False
 )
