@@ -10,5 +10,9 @@ setup(
     packages=[
         'nparray'
     ],
+    test_suite='tests',
+    tests_require=[
+        'numpy',
+    ],
     zip_safe=False
 )
