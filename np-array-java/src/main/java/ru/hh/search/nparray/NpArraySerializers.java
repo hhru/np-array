@@ -46,18 +46,16 @@ public class NpArraySerializers {
   public static void serialize(NpArrays arrays, Path path) throws IOException {
     try (FileOutputStream fos = new FileOutputStream(path.toString())) {
 
-      //
-
       fos.write(intToBytes(arrays.intPosition));
       fos.write(intToBytes(arrays.floatPosition));
 
-      int preArraysOffset = 8;
+      long preArraysOffset = 8;
 
       preArraysOffset += arrays.intPosition * HEADER_SIZE;
       preArraysOffset += arrays.floatPosition * HEADER_SIZE;
       preArraysOffset += 2; // delimiters
 
-      int preNameOffset = preArraysOffset;
+      long preNameOffset = preArraysOffset;
 
       preArraysOffset = getPreArraysOffset(preArraysOffset, arrays.intPosition, arrays.nameIntArrays);
       preArraysOffset = getPreArraysOffset(preArraysOffset, arrays.floatPosition, arrays.nameFloatArrays);
@@ -66,7 +64,7 @@ public class NpArraySerializers {
       for (int i = 0; i < arrays.intPosition; i++) {
         int row = arrays.intsArrays[i].length;
         int column = arrays.intsArrays[i][0].length;
-        int byteSize = (row * column * BYTES_4);
+        long byteSize = ((long) row * (long) column * BYTES_4);
         fos.write(intToBytes(row));
         fos.write(intToBytes(column));
         fos.write(longToBytes(preNameOffset));
@@ -81,7 +79,7 @@ public class NpArraySerializers {
       for (int i = 0; i < arrays.floatPosition; i++) {
         int row = arrays.floatsArrays[i].length;
         int column = arrays.floatsArrays[i][0].length;
-        int byteSize = (row * column * BYTES_4);
+        long byteSize = ((long) row * (long) column * BYTES_4);
         fos.write(intToBytes(row));
         fos.write(intToBytes(column));
         fos.write(longToBytes(preNameOffset));
@@ -119,21 +117,22 @@ public class NpArraySerializers {
 
   public static float[][] getFloatArray(Path path, NpHeaders headers, String key) throws IOException {
     ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+    byte[] bytes = new byte[BUFFER_SIZE];
     int n = getKey(headers.nameFloatArrays, key);
     float[][] result;
 
     try (InputStream input = new FileInputStream(path.toString())) {
       long positionStart = headers.offsetArrayFloat[n];
       input.skip(positionStart);
-      result = new float[headers.rowsFloat[n]][headers.rowsFloat[n]];
+      result = new float[headers.rowsFloat[n]][headers.columnFloat[n]];
       for (int i = 0; i < headers.rowsFloat[n]; i++) {
         int j = 0;
         while (j < headers.columnFloat[n]) {
-          int remaining = headers.columnFloat[n] - j;
-          byte[] bytes = new byte[min(remaining * 4, BUFFER_SIZE)];
-          input.read(bytes);
-          byteBuffer.limit(min(remaining * 4, BUFFER_SIZE));
-          byteBuffer.put(bytes);
+          long remainingBytes = ((long) headers.columnFloat[n] - j) * 4;
+          int limit = (int) min(remainingBytes, BUFFER_SIZE);
+          input.read(bytes, 0, limit);
+          byteBuffer.limit(limit);
+          byteBuffer.put(bytes, 0, limit);
           byteBuffer.rewind();
           while (byteBuffer.hasRemaining()) {
             result[i][j] = byteBuffer.getFloat();
@@ -149,21 +148,22 @@ public class NpArraySerializers {
 
   public static int[][] getIntArray(Path path, NpHeaders headers, String key) throws IOException {
     ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+    byte[] bytes = new byte[BUFFER_SIZE];
     int n = getKey(headers.nameIntArrays, key);
     int[][] result;
 
     try (InputStream input = new FileInputStream(path.toString())) {
       long positionStart = headers.offsetArrayInt[n];
       input.skip(positionStart);
-      result = new int[headers.rowsInt[n]][headers.rowsInt[n]];
+      result = new int[headers.rowsInt[n]][headers.columnInt[n]];
       for (int i = 0; i < headers.rowsInt[n]; i++) {
         int j = 0;
         while (j < headers.columnInt[n]) {
-          int remaining = headers.columnInt[n] - j;
-          byte[] bytes = new byte[min(remaining * 4, BUFFER_SIZE)];
-          input.read(bytes);
-          byteBuffer.limit(min(remaining * 4, BUFFER_SIZE));
-          byteBuffer.put(bytes);
+          long remainingBytes = ((long) headers.columnInt[n] - j) * 4;
+          int limit = (int) min(remainingBytes, BUFFER_SIZE);
+          input.read(bytes, 0, limit);
+          byteBuffer.limit(limit);
+          byteBuffer.put(bytes, 0, limit);
           byteBuffer.rewind();
           while (byteBuffer.hasRemaining()) {
             result[i][j] = byteBuffer.getInt();
@@ -363,17 +363,19 @@ public class NpArraySerializers {
 
   private static void readArrayFloat(InputStream input, int floatSize, NpArrays npArrays, int[] rowsFloat, int[] columnFloat) throws IOException {
     ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+    byte[] bytes = new byte[BUFFER_SIZE];
     byteBuffer.order(BYTE_ORDER);
+
     for (int i = 0; i < floatSize; i++) {
       npArrays.floatsArrays[i] = new float[rowsFloat[i]][columnFloat[i]];
       for (int j = 0; j < rowsFloat[i]; j++) {
         int n = 0;
         while (n < columnFloat[i]) {
-          int remaining = columnFloat[i] - n;
-          byte[] bytes = new byte[min(remaining * 4, BUFFER_SIZE)];
-          input.read(bytes);
-          byteBuffer.limit(min(remaining * 4, BUFFER_SIZE));
-          byteBuffer.put(bytes);
+          long remainingBytes = ((long) columnFloat[i] - n) * 4;
+          int limit = (int) min(remainingBytes, BUFFER_SIZE);
+          input.read(bytes, 0, limit);
+          byteBuffer.limit(limit);
+          byteBuffer.put(bytes, 0, limit);
           byteBuffer.rewind();
           while (byteBuffer.hasRemaining()) {
             npArrays.floatsArrays[i][j][n] = byteBuffer.getFloat();
@@ -388,17 +390,19 @@ public class NpArraySerializers {
 
   private static void readArrayInt(InputStream input, int intSize, NpArrays npArrays, int[] rowsInt, int[] columnInt) throws IOException {
     ByteBuffer byteBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+    byte[] bytes = new byte[BUFFER_SIZE];
     byteBuffer.order(BYTE_ORDER);
+
     for (int i = 0; i < intSize; i++) {
       npArrays.intsArrays[i] = new int[rowsInt[i]][columnInt[i]];
       for (int j = 0; j < rowsInt[i]; j++) {
         int n = 0;
         while (n < columnInt[i]) {
-          int remaining = columnInt[i] - n;
-          byte[] bytes = new byte[min(remaining * 4, BUFFER_SIZE)];
-          input.read(bytes);
-          byteBuffer.limit(min(remaining * 4, BUFFER_SIZE));
-          byteBuffer.put(bytes);
+          long remainingBytes = ((long) columnInt[i] - n) * 4;
+          int limit = (int) min(remainingBytes, BUFFER_SIZE);
+          input.read(bytes, 0, limit);
+          byteBuffer.limit(limit);
+          byteBuffer.put(bytes, 0, limit);
           byteBuffer.rewind();
           while (byteBuffer.hasRemaining()) {
             npArrays.intsArrays[i][j][n] = byteBuffer.getInt();
@@ -434,7 +438,7 @@ public class NpArraySerializers {
     }
   }
 
-  private static int getPreArraysOffset(int preArraysOffset, int position, String[] names) {
+  private static long getPreArraysOffset(long preArraysOffset, int position, String[] names) {
     for (int i = 0; i < position; i++) {
       int length = names[i].getBytes().length;
       preArraysOffset += length;

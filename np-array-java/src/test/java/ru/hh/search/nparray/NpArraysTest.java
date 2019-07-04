@@ -1,6 +1,8 @@
 package ru.hh.search.nparray;
 
 import static org.junit.Assert.assertArrayEquals;
+
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -125,6 +127,45 @@ public class NpArraysTest {
 
     assertArrayEquals(floats2, newFloats2);
     assertArrayEquals(ints2, newInts2);
+  }
+
+  @Test
+  @Ignore
+  public void hugeArrayTestLoadEach() throws IOException {
+    NpArrays npArrays = new NpArrays();
+    Path path = Paths.get("123");
+    float[][] floats1 = generateArrayFloat(580864151, 1, 2.4f);
+    npArrays.add(floats1, "looongFloat");
+    int[][] ints1 = generateArrayInt(580864151, 1, 5);
+    npArrays.add(ints1, "looongInt1");
+    int[][] ints2 = generateArrayInt(580864151, 1, 10);
+    npArrays.add(ints2, "looongInt2");
+    NpArraySerializers.serialize(npArrays, path);
+    NpHeaders headers = NpArraySerializers.getOnlyHeaders(path);
+
+    assertArrayEquals(floats1, NpArraySerializers.getFloatArray(path, headers, "looongFloat"));
+    assertArrayEquals(ints1, NpArraySerializers.getIntArray(path, headers, "looongInt1"));
+    assertArrayEquals(ints2, NpArraySerializers.getIntArray(path, headers, "looongInt2"));
+  }
+
+  @Test
+  @Ignore
+  public void hugeArrayTest() throws IOException {
+    NpArrays npArrays = new NpArrays();
+    Path path = Paths.get("123");
+    float[][] floats1 = generateArrayFloat(580874151, 1, 2.4f);
+    npArrays.add(floats1, "looongFloat");
+    int[][] ints1 = generateArrayInt(581864151, 1, 5);
+    npArrays.add(ints1, "looongInt1");
+    int[][] ints2 = generateArrayInt(582864151, 2, 11);
+    npArrays.add(ints2, "looongInt2");
+    NpArraySerializers.serialize(npArrays, path);
+
+    NpArrays result = NpArraySerializers.deserialize(path);
+
+    assertArrayEquals(floats1, result.getFloatArray("looongFloat"));
+    assertArrayEquals(ints1, result.getIntArray("looongInt1"));
+    assertArrayEquals(ints2, result.getIntArray("looongInt2"));
   }
 
   private float[][] generateArrayFloat(int column, int row, float elem) {
