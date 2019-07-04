@@ -1,18 +1,24 @@
-Source: hh-nparray
+Source: nparray
 Section: python
 Maintainer: Smirnov Danil <d.smirniv@hh.ru>
 Build-Depends:
   build-essential,
   debhelper (>= 8),
   python,
-  python-setuptools,
-  python-support,
+  python3.7,
 Standards-Version: 3.9.5
 X-Python-Version: >= 2.7
+X-Python3-Version: >= 3.5
+Replaces: hh-nparray
 
-Package: hh-nparray
+Package: python-nparray
 Architecture: all
 Depends:
-  ${misc:Depends},
-  ${python:Depends},
+  python
+Description: NumPy arrays serializer/deserializer
+
+Package: python3-nparray
+Architecture: all
+Depends:
+  python3.7
 Description: NumPy arrays serializer/deserializer
