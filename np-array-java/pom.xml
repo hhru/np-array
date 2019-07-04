@@ -11,7 +11,7 @@
 
   <groupId>ru.hh.search</groupId>
   <artifactId>np-array</artifactId>
-  <version>1.0.3-SNAPSHOT</version>
+  <version>1.0.3</version>
 
   <name>np-array</name>
 
@@ -69,7 +69,7 @@
   <scm>
     <connection>scm:git:git@github.com:hhru/np-array.git</connection>
     <developerConnection>scm:git:git@github.com:hhru/np-array.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>np-array-1.0.3</tag>
   </scm>
 
 </project>
