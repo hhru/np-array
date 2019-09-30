@@ -37,6 +37,25 @@ public class GenerateFileTest {
     ints2[1][0] = -34444343;
     npArrays.add(ints2, "整数");
 
+    String[][] strings1 = new String[2][1];
+    strings1[0][0] = "asdcs";
+    strings1[1][0] = "апапа";
+    npArrays.add(strings1, "byte_string2");
+
+    String[][] strings2 = new String[3][2];
+    strings2[0][0] = "asdcs";
+    strings2[0][1] = "!!!U3gARt7BC9VwlAnxFHQ--";
+    strings2[1][0] = "апапа";
+    strings2[1][1] = "!-0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
+    strings2[2][0] = "整数";
+    strings2[2][1] = "&&()";
+    npArrays.add(strings2, "байт_стринга1");
+
+    String[][] strings3 = new String[1][2];
+    strings3[0][0] = "asdcs";
+    strings3[0][1] = "!!!U3gARt7BC9VwlAnxFHQ--";
+    npArrays.add(strings3, "строчечка3");
+
     NpArraySerializers.serialize(npArrays, Paths.get(args[0]));
   }
 }

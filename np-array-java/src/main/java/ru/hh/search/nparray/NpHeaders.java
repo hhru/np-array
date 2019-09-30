@@ -13,9 +13,13 @@ public class NpHeaders extends NpBase{
   protected long[] offsetNameFloat;
   protected long[] offsetArrayFloat;
 
+  protected int[] rowsString;
+  protected int[] columnString;
+  protected long[] offsetNameString;
+  protected long[] offsetArrayString;
 
-  public NpHeaders(int initSizeInt, int initSizeFloat) {
-    super(initSizeInt, initSizeFloat);
+  public NpHeaders(String version, int initSizeInt, int initSizeFloat, int initSizeString) {
+    super(version, initSizeInt, initSizeFloat, initSizeString);
   }
 
   public void setRowsInt(int[] rowsInt) {
@@ -48,5 +52,21 @@ public class NpHeaders extends NpBase{
 
   public void setOffsetArrayFloat(long[] offsetArrayFloat) {
     this.offsetArrayFloat = offsetArrayFloat;
+  }
+
+  public void setRowsString(int[] rowsString) {
+    this.rowsString = rowsString;
+  }
+
+  public void setColumnString(int[] columnString) {
+    this.columnString = columnString;
+  }
+
+  public void setOffsetNameString(long[] offsetNameString) {
+    this.offsetNameString = offsetNameString;
+  }
+
+  public void setOffsetArrayString(long[] offsetArrayString) {
+    this.offsetArrayString = offsetArrayString;
   }
 }

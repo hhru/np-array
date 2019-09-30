@@ -4,17 +4,21 @@ import java.util.Arrays;
 
 public class NpArrays extends NpBase {
 
+  private static final String NAME_NOT_FOUND_DESCRIPTION = "Name not found";
+
   protected float[][][] floatsArrays;
   protected int[][][] intsArrays;
+  protected String[][][] stringsArrays;
 
-  public NpArrays(int initSizeInt, int initSizeFloat) {
-    super(initSizeInt, initSizeFloat);
+  public NpArrays(String version, int initSizeInt, int initSizeFloat, int initSizeString) {
+    super(version, initSizeInt, initSizeFloat, initSizeString);
     floatsArrays = new float[initSizeFloat][][];
     intsArrays = new int[initSizeInt][][];
+    stringsArrays = new String[initSizeString][][];
   }
 
   public NpArrays() {
-    this(10, 10);
+    this(NpBase.ACTUAL_VERSION, 10, 10, 10);
   }
 
   public void add(float[][] array, String name) {
@@ -31,6 +35,13 @@ public class NpArrays extends NpBase {
     intPosition++;
   }
 
+  public void add(String[][] array, String name) {
+    checkNeedResizeStrings();
+    nameStringArrays[stringPosition] = name;
+    stringsArrays[stringPosition] = array;
+    stringPosition++;
+  }
+
   private void checkNeedResizeFloats() {
     if (nameFloatArrays.length - 1 == floatPosition) {
       floatsArrays = Arrays.copyOf(floatsArrays, floatPosition * 2);
@@ -45,6 +56,13 @@ public class NpArrays extends NpBase {
     }
   }
 
+  private void checkNeedResizeStrings() {
+    if (nameStringArrays.length - 1 == stringPosition) {
+      stringsArrays = Arrays.copyOf(stringsArrays, stringPosition * 2);
+      nameStringArrays = Arrays.copyOf(nameStringArrays, stringPosition * 2);
+    }
+  }
+
   public float[][] getFloatArray(String name) {
     int i = 0;
     for (String nameArr : nameFloatArrays) {
@@ -53,7 +71,7 @@ public class NpArrays extends NpBase {
       }
       i++;
     }
-    throw new IllegalArgumentException("Name not found");
+    throw new IllegalArgumentException(NAME_NOT_FOUND_DESCRIPTION);
   }
 
   public int[][] getIntArray(String name) {
@@ -64,8 +82,18 @@ public class NpArrays extends NpBase {
       }
       i++;
     }
-    throw new IllegalArgumentException("Name not found");
+    throw new IllegalArgumentException(NAME_NOT_FOUND_DESCRIPTION);
   }
 
+  public String[][] getStringArray(String name) {
+    int i = 0;
+    for (String nameArr : nameStringArrays) {
+      if (nameArr.equals(name)) {
+        return stringsArrays[i];
+      }
+      i++;
+    }
+    throw new IllegalArgumentException(NAME_NOT_FOUND_DESCRIPTION);
+  }
 
 }
