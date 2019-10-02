@@ -6,8 +6,13 @@ import numpy as np
 
 from nparray import serialize
 
-
 if __name__ == '__main__':
+
+    if sys.version_info < (3, 0):
+        STRING_TYPE = np.string_
+    else:
+        STRING_TYPE = np.unicode_
+
     floats1 = np.zeros((2, 3), dtype='float32')
     floats1[0][0] = 10.0001
     floats1[0][1] = 0.0000001
@@ -34,11 +39,29 @@ if __name__ == '__main__':
     ints2[0][0] = 455545
     ints2[1][0] = -34444343
 
+    strings1 = np.array([
+        ['asdcs', '!!!U3gARt7BC9VwlAnxFHQ--'],
+        ['апапа', '!-0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz'],
+        ['整数', '&&()']
+    ], dtype=STRING_TYPE)
+
+    strings2 = np.array([
+        ['asdcs'],
+        ['апапа'],
+    ], dtype=STRING_TYPE)
+
+    strings3 = np.array([
+        ['asdcs', '!!!U3gARt7BC9VwlAnxFHQ--']
+    ], dtype=STRING_TYPE)
+
     data = {
         'fffff1': floats1,
         'флоат!': floats2,
         'iiiii1': ints1,
         '整数': ints2,
+        'байт_стринга1': strings1,
+        'byte_string2': strings2,
+        'строчечка3': strings3
     }
 
     serialize(sys.argv[1], **data)
