@@ -54,7 +54,7 @@ public class NpArraySerializers {
 
   }
 
-  static void serialize(NpArrays arrays, Path path) throws IOException {
+  public static void serialize(NpArrays arrays, Path path) throws IOException {
     try (FileOutputStream fos = new FileOutputStream(path.toString())) {
 
       fos.write(NpBase.ACTUAL_VERSION.getBytes());
