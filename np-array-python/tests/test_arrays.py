@@ -34,7 +34,7 @@ class TestNPArrays(unittest.TestCase):
         ints2[1][2] = 6
 
         strings1 = np.array([
-            ['asdcs', '!!!U3gARt7BC9VwlAnxFHQ--'],
+            ['as\ndcs', '!!!U3gARt7BC9VwlAnxFHQ--'],
             ['апапа', '!-0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz'],
             ['整数', '&&()']
         ], dtype=STRING_TYPE)

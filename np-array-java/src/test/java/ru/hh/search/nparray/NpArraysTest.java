@@ -115,6 +115,20 @@ public class NpArraysTest {
   }
 
   @Test
+  public void stringsWithSpecialSymbols() throws IOException {
+    NpArrays npArrays = new NpArrays();
+    String[][] strings = generateArrayString(100, 100, "test");
+    strings[0][0] += "\ntest";
+    strings[0][1] += "\t another test";
+    strings[strings.length - 1][strings[0].length - 1] += "\n";
+    npArrays.add(strings, "10_10_test");
+    NpArraySerializers.serialize(npArrays, Paths.get("123"));
+    NpArrays newNpArrays = NpArraySerializers.deserialize(Paths.get("123"));
+    assertArrayEquals(strings, newNpArrays.getStringArray("10_10_test"));
+    Files.delete(Paths.get("123"));
+  }
+
+  @Test
   public void loadTest() throws IOException {
     NpArrays npArrays = new NpArrays();
     float[][] floats = generateArrayFloat(100_000, 100, 2.4f);

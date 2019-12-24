@@ -1,5 +1,6 @@
 # coding=utf-8
 
+import collections
 import sys
 
 import numpy as np
@@ -41,7 +42,7 @@ if __name__ == '__main__':
 
     strings1 = np.array([
         ['asdcs', '!!!U3gARt7BC9VwlAnxFHQ--'],
-        ['апапа', '!-0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz'],
+        ['апа\nпа', '!-0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz'],
         ['整数', '&&()']
     ], dtype=STRING_TYPE)
 
@@ -54,14 +55,13 @@ if __name__ == '__main__':
         ['asdcs', '!!!U3gARt7BC9VwlAnxFHQ--']
     ], dtype=STRING_TYPE)
 
-    data = {
-        'fffff1': floats1,
-        'флоат!': floats2,
-        'iiiii1': ints1,
-        '整数': ints2,
-        'байт_стринга1': strings1,
-        'byte_string2': strings2,
-        'строчечка3': strings3
-    }
+    data = collections.OrderedDict()
+    data['fffff1'] = floats1
+    data['флоат!'] = floats2
+    data['iiiii1'] = ints1
+    data['整数'] = ints2
+    data['byte_string2'] = strings2
+    data['байт_стринга1'] = strings1
+    data['строчечка3'] = strings3
 
     serialize(sys.argv[1], **data)

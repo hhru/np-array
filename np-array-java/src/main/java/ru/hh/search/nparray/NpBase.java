@@ -3,7 +3,7 @@ package ru.hh.search.nparray;
 
 public class NpBase {
 
-  public static final String ACTUAL_VERSION = "PQTuEibj";
+  public static final String ACTUAL_VERSION = "swkFx7VJ";
 
   private final String version;
 

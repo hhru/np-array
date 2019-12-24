@@ -3,6 +3,7 @@ package ru.hh.search.nparray;
 
 import static java.lang.Math.min;
 
+import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -136,7 +137,7 @@ public class NpArraySerializers {
       nameOffset += arrays.nameStringArrays[k].getBytes().length;
       for (int i = 0; i < rows; i++) {
         for (int j = 0; j < columns; j++) {
-          arrayOffset += arrays.stringsArrays[k][i][j].getBytes().length + 1;
+          arrayOffset += arrays.stringsArrays[k][i][j].getBytes().length + BYTES_4;
         }
       }
     }
@@ -198,42 +199,65 @@ public class NpArraySerializers {
 
   public static String[][] getStringArray(Path path, NpHeaders headers, String key) throws IOException {
 
-    byte[] bytes = new byte[BUFFER_SIZE];
-    byte[] tailBytes = null;
+    int matrixIndex = getKey(headers.nameStringArrays, key);
 
-    int bytesRead;
-    int currentMatrixRow = 0;
-    int currentMatrixCol = 0;
-    String delimiter = new String(new byte[]{STRING_DELIMITER});
-    int currentMatrix = getKey(headers.nameStringArrays, key);
+    NpArrays npArrays = new NpArrays(NpBase.ACTUAL_VERSION, 0, 0, matrixIndex + 1);
+    npArrays.stringsArrays[matrixIndex] = new String[headers.rowsString[matrixIndex]][headers.columnString[matrixIndex]];
 
-    String[][] result = new String[headers.rowsString[currentMatrix]][headers.columnString[currentMatrix]];
-
-    try (InputStream input = new FileInputStream(path.toString())) {
-      long positionStart = headers.offsetArrayString[currentMatrix];
+    try (InputStream input = new BufferedInputStream(new FileInputStream(path.toString()), BUFFER_SIZE)) {
+      long positionStart = headers.offsetArrayString[matrixIndex];
       input.skip(positionStart);
-
-      while ((bytesRead = input.read(bytes)) > 0) {
-        int lastDelimiterIndex = bytesRead == BUFFER_SIZE ? lastIndexOf(bytes, STRING_DELIMITER) : bytesRead - 1;
-        byte[] effectiveBytes = getEffectiveBytes(bytes, tailBytes, lastDelimiterIndex);
-        tailBytes = getTailBytes(bytes, lastDelimiterIndex, bytesRead);
-        String allStrings = new String(effectiveBytes);
-        for (String elem : allStrings.split(delimiter)) {
-          result[currentMatrixRow][currentMatrixCol] = elem;
-          currentMatrixCol++;
-          if (currentMatrixCol == headers.columnString[currentMatrix]) {
-            currentMatrixCol = 0;
-            currentMatrixRow++;
-          }
-          if (currentMatrixRow == headers.rowsString[currentMatrix]) {
-            return result;
-          }
-        }
-      }
+      readStringArray(input, npArrays, headers.rowsString, headers.columnString, matrixIndex);
     }
-    return result;
+    return npArrays.stringsArrays[matrixIndex];
   }
 
+  private static void readStringArray(InputStream input, NpArrays npArrays,
+                                      int[] rowsString, int[] columnString, Integer matrixIndex) throws IOException {
+    byte[] stringLengthBuffer = new byte[BYTES_4];
+    byte[] stringBuffer = new byte[BUFFER_SIZE];
+    boolean readAllMatrices = matrixIndex == null;
+
+    int stringLength;
+    int currentRow = 0;
+    int currentColumn = 0;
+    int currentMatrixIndex = matrixIndex == null ? 0 : matrixIndex;
+
+    while (input.read(stringLengthBuffer) > 0) {
+      stringLength = ByteBuffer.wrap(stringLengthBuffer).getInt();
+      if (stringLength > stringBuffer.length) {
+        stringBuffer = new byte[stringLength];
+      }
+      input.readNBytes(stringBuffer, 0, stringLength);
+      npArrays.stringsArrays[currentMatrixIndex][currentRow][currentColumn] = new String(stringBuffer, 0, stringLength);
+      currentColumn++;
+      if (currentColumn == columnString[currentMatrixIndex]) {
+        currentColumn = 0;
+        currentRow++;
+      }
+      if (currentRow == rowsString[currentMatrixIndex]) {
+        if (!readAllMatrices) {
+          return;
+        }
+        currentRow = 0;
+        currentMatrixIndex++;
+      }
+    }
+  }
+
+  @Deprecated
+  private static byte[] getTailBytesOldVersion(byte[] bytes, int lastDelimiterIndex, int bytesRead) {
+    byte[] tailBytes;
+    if (lastDelimiterIndex < BUFFER_SIZE - 1 && bytesRead == BUFFER_SIZE) {
+      tailBytes = new byte[BUFFER_SIZE - lastDelimiterIndex - 1];
+      System.arraycopy(bytes, lastDelimiterIndex + 1, tailBytes, 0, BUFFER_SIZE - lastDelimiterIndex - 1);
+    } else {
+      tailBytes = null;
+    }
+    return tailBytes;
+  }
+
+  @Deprecated
   private static byte[] getEffectiveBytes(byte[] bytes, byte[] tailBytes, int lastDelimiterIndex) {
     byte[] effectiveBytes;
     if (tailBytes != null) {
@@ -245,17 +269,6 @@ public class NpArraySerializers {
       System.arraycopy(bytes, 0, effectiveBytes, 0, lastDelimiterIndex);
     }
     return effectiveBytes;
-  }
-
-  private static byte[] getTailBytes(byte[] bytes, int lastDelimiterIndex, int bytesRead) {
-    byte[] tailBytes;
-    if (lastDelimiterIndex < BUFFER_SIZE - 1 && bytesRead == BUFFER_SIZE) {
-      tailBytes = new byte[BUFFER_SIZE - lastDelimiterIndex - 1];
-      System.arraycopy(bytes, lastDelimiterIndex + 1, tailBytes, 0, BUFFER_SIZE - lastDelimiterIndex - 1);
-    } else {
-      tailBytes = null;
-    }
-    return tailBytes;
   }
 
   private static int getKey(String[] names, String key) {
@@ -284,29 +297,18 @@ public class NpArraySerializers {
 
     NpBase npBase;
 
-    String oldVersion = "OLD";
-
     String version;
     int intSize;
     int floatSize;
     int stringSize;
     fis.read(bytes8);
-    if (bytes8[0] == 0) {
-      version = oldVersion;
-      System.arraycopy(bytes8, 0, bytes4, 0, 4);
-      intSize = bytesToInt(bytes4);
-      System.arraycopy(bytes8, 4, bytes4, 0, 4);
-      floatSize = bytesToInt(bytes4);
-      stringSize = 0;
-    } else {
-      version = new String(bytes8);
-      fis.read(bytes4);
-      intSize = bytesToInt(bytes4);
-      fis.read(bytes4);
-      floatSize = bytesToInt(bytes4);
-      fis.read(bytes4);
-      stringSize = bytesToInt(bytes4);
-    }
+    version = new String(bytes8);
+    fis.read(bytes4);
+    intSize = bytesToInt(bytes4);
+    fis.read(bytes4);
+    floatSize = bytesToInt(bytes4);
+    fis.read(bytes4);
+    stringSize = bytesToInt(bytes4);
 
     if (!onlyHeaders) {
       npBase = new NpArrays(version, intSize, floatSize, stringSize);
@@ -336,16 +338,12 @@ public class NpArraySerializers {
     // FLOAT META READ
     readMetadata(bytes, bytesAll, bytes4, bytes8, fis, rowsFloat, columnFloat, offsetNameFloat, offsetArrayFloat, counter);
     counter = 0;
-    if (!version.equals(oldVersion)) {
-      // STRING META READ
-      readMetadata(bytes, bytesAll, bytes4, bytes8, fis, rowsString, columnString, offsetNameString, offsetArrayString, counter);
-    }
+    // STRING META READ
+    readMetadata(bytes, bytesAll, bytes4, bytes8, fis, rowsString, columnString, offsetNameString, offsetArrayString, counter);
 
     intNamesRead(fis, intSize, npBase, offsetNameInt, offsetNameFloat, offsetNameString, offsetArrayInt);
     floatNamesRead(fis, floatSize, npBase, offsetNameString, offsetNameFloat, offsetArrayInt, offsetArrayFloat);
-    if (!version.equals(oldVersion)) {
-      stringNamesRead(fis, stringSize, npBase, offsetNameString, offsetArrayInt, offsetArrayFloat, offsetArrayString);
-    }
+    stringNamesRead(fis, stringSize, npBase, offsetNameString, offsetArrayInt, offsetArrayFloat, offsetArrayString);
 
     if (onlyHeaders) {
       NpHeaders npHeaders = (NpHeaders) npBase;
@@ -364,8 +362,10 @@ public class NpArraySerializers {
     NpArrays npArrays = (NpArrays) npBase;
     readArraysInt(fis, intSize, npArrays, rowsInt, columnInt);
     readArraysFloat(fis, floatSize, npArrays, rowsFloat, columnFloat);
-    if (!version.equals(oldVersion)) {
+    if (version.equals(NpBase.ACTUAL_VERSION)) {
       readArraysString(fis, stringSize, npArrays, rowsString, columnString);
+    } else {
+      readArraysStringOldVersion(fis, stringSize, npArrays, rowsString, columnString);
     }
     return npArrays;
   }
@@ -451,10 +451,21 @@ public class NpArraySerializers {
     }
   }
 
+  private static void writeStringLength(FileOutputStream fos, ByteBuffer byteBuffer, int length) throws IOException {
+    if (byteBuffer.remaining() >= BYTES_4) {
+      byteBuffer.putInt(length);
+    } else {
+      writeBytesToPosition(fos, byteBuffer);
+      byteBuffer.clear();
+      byteBuffer.putInt(length);
+    }
+  }
+
   private static void writeStrings(NpArrays arrays, FileOutputStream fos,
                                    ByteBuffer byteBuffer, int i, int j, int n) throws IOException {
-    String elem = arrays.stringsArrays[i][j][n] + "\n";
+    String elem = arrays.stringsArrays[i][j][n];
     int elemLength = elem.getBytes().length;
+    writeStringLength(fos, byteBuffer, elemLength);
     if (isLastElementOfArray(i, j, n, arrays.stringPosition, arrays.stringsArrays[i].length, arrays.stringsArrays[i][j].length)) {
       if (elemLength > byteBuffer.remaining()) {
         fos.write(byteBuffer.array());
@@ -533,7 +544,7 @@ public class NpArraySerializers {
     for (int i = 0; i < rows; i++) {
       int j = 0;
       while (j < columns) {
-        long remainingBytes = ((long) columns - j) * 4;
+        long remainingBytes = ((long) columns - j) * BYTES_4;
         int limit = (int) min(remainingBytes, BUFFER_SIZE);
         readPartArray(input, byteBuffer, bytes, limit);
         while (byteBuffer.hasRemaining()) {
@@ -571,7 +582,7 @@ public class NpArraySerializers {
     for (int i = 0; i < rows; i++) {
       int j = 0;
       while (j < columns) {
-        long remainingBytes = ((long) columns - j) * 4;
+        long remainingBytes = ((long) columns - j) * BYTES_4;
         int limit = (int) min(remainingBytes, BUFFER_SIZE);
         readPartArray(input, byteBuffer, bytes, limit);
         while (byteBuffer.hasRemaining()) {
@@ -593,6 +604,18 @@ public class NpArraySerializers {
     for (int i = 0; i < stringSize; i++) {
       npArrays.stringsArrays[i] = new String[rowsString[i]][columnString[i]];
     }
+    readStringArray(new BufferedInputStream(input, BUFFER_SIZE), npArrays, rowsString, columnString, null);
+  }
+
+  @Deprecated
+  private static void readArraysStringOldVersion(InputStream input, int stringSize, NpArrays npArrays,
+                                       int[] rowsString, int[] columnString) throws IOException {
+    if (stringSize == 0) {
+      return;
+    }
+    for (int i = 0; i < stringSize; i++) {
+      npArrays.stringsArrays[i] = new String[rowsString[i]][columnString[i]];
+    }
 
     byte[] bytes = new byte[BUFFER_SIZE];
     byte[] tailBytes = null;
@@ -605,7 +628,7 @@ public class NpArraySerializers {
     while ((bytesRead = input.read(bytes)) > 0) {
       int lastDelimiterIndex = bytesRead == BUFFER_SIZE ? lastIndexOf(bytes, STRING_DELIMITER) : bytesRead - 1;
       byte[] effectiveBytes = getEffectiveBytes(bytes, tailBytes, lastDelimiterIndex);
-      tailBytes = getTailBytes(bytes, lastDelimiterIndex, bytesRead);
+      tailBytes = getTailBytesOldVersion(bytes, lastDelimiterIndex, bytesRead);
       String allStrings = new String(effectiveBytes);
       for (String elem : allStrings.split(delimiter)) {
         npArrays.stringsArrays[currentMatrix][currentMatrixRow][currentMatrixCol] = elem;
@@ -622,6 +645,7 @@ public class NpArraySerializers {
     }
   }
 
+  @Deprecated
   private static int lastIndexOf(byte[] bytes, byte value) {
     for (int i = bytes.length - 1; i > 0; i--) {
       if (bytes[i] == value) {
@@ -702,4 +726,5 @@ public class NpArraySerializers {
       this.arraySize = arraySize;
     }
   }
+
 }

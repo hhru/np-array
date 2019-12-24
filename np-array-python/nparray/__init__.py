@@ -7,7 +7,7 @@ from itertools import chain
 
 import numpy as np
 
-VERSION = 'PQTuEibj'
+VERSION = 'swkFx7VJ'
 VERSION_SIZE = 8
 
 NUMBER_SIZE = 4
@@ -16,9 +16,6 @@ HEADER_SIZE = NUMBER_SIZE + NUMBER_SIZE + 2 * NUMBER_SIZE + 2 * NUMBER_SIZE
 
 HEADER_DELIMITER = '\n'
 HEADER_DELIMITER_SIZE = 1
-
-STRING_DELIMITER = '\n'
-STRING_DELIMITER_SIZE = 1
 
 COUNT_STRUCT = '>iii'
 HEADER_STRUCT = '>iiqq'
@@ -68,12 +65,24 @@ def _is_string_array(arr):
 
 def _write_string_array(fp, arr):
     for string in arr.ravel():
-        fp.write(to_bytes(string + STRING_DELIMITER))
+        string_bytes = to_bytes(string)
+        fp.write((len(string_bytes)).to_bytes(4, byteorder='big'))
+        fp.write(string_bytes)
 
 
 def _read_string_array(fp, header, bytes_to_read):
     rows, columns = header[0], header[1]
-    arr = from_bytes(fp.read(bytes_to_read)).split(STRING_DELIMITER)[:-1]
+    buffer = fp.read(bytes_to_read)
+    offset = 0
+    arr = []
+    for i in range(rows):
+        row = []
+        for j in range(columns):
+            string_length = int.from_bytes(buffer[offset: offset + NUMBER_SIZE], byteorder='big')
+            offset += NUMBER_SIZE
+            row.append(from_bytes(buffer[offset: offset + string_length]))
+            offset += string_length
+        arr.append(row)
     return np.asarray(arr, dtype=STRING_TYPE).reshape((rows, columns))
 
 
@@ -110,7 +119,7 @@ def serialize(filename, **kwargs):
             destination.append((name, arr, headers_offset, data_offset))
             headers_offset += len(to_bytes(name))
             if _is_string_array(arr):
-                data_offset += sum(map(lambda h: len(to_bytes(h)), arr.ravel())) + arr.size * STRING_DELIMITER_SIZE
+                data_offset += sum(map(lambda h: len(to_bytes(h)), arr.ravel())) + arr.size * NUMBER_SIZE
             else:
                 data_offset += arr.size * NUMBER_SIZE
 

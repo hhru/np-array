@@ -45,7 +45,7 @@ public class GenerateFileTest {
     String[][] strings2 = new String[3][2];
     strings2[0][0] = "asdcs";
     strings2[0][1] = "!!!U3gARt7BC9VwlAnxFHQ--";
-    strings2[1][0] = "апапа";
+    strings2[1][0] = "апа\nпа";
     strings2[1][1] = "!-0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
     strings2[2][0] = "整数";
     strings2[2][1] = "&&()";
