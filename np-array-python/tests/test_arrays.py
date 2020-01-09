@@ -61,6 +61,8 @@ class TestNPArrays(unittest.TestCase):
 
         serialize(filename, **data)
         result = deserialize(filename)
+        serialize(filename, **result)
+        result = deserialize(filename)
 
         self.assertTrue(np.array_equal(ints, result['super_matrix']))
         self.assertTrue(np.array_equal(ints2, result['data']))

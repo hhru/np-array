@@ -56,7 +56,9 @@ def _read_headers(fp, count):
 
 def _read_array(fp, header, type_str):
     rows, columns = header[0], header[1]
-    return np.fromfile(fp, np.dtype('>{}'.format(type_str)), count=rows * columns).reshape((rows, columns))
+    return (np.fromfile(fp, np.dtype('>{}'.format(type_str)), count=rows * columns)
+            .reshape((rows, columns))
+            .astype(type_str))
 
 
 def _is_string_array(arr):
