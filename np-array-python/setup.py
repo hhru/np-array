@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name='nparray',
-    version='1.0.4',
+    version='1.0.7',
     description='NumPy arrays serializer/deserializer',
     packages=[
         'nparray'
