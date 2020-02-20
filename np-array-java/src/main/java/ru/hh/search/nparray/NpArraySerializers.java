@@ -223,12 +223,12 @@ public class NpArraySerializers {
     int currentColumn = 0;
     int currentMatrixIndex = matrixIndex == null ? 0 : matrixIndex;
 
-    while (input.read(stringLengthBuffer) > 0) {
+    while (input.readNBytes(stringLengthBuffer, 0, BYTES_4) > 0) {
       stringLength = ByteBuffer.wrap(stringLengthBuffer).getInt();
       if (stringLength > stringBuffer.length) {
         stringBuffer = new byte[stringLength];
       }
-      input.readNBytes(stringBuffer, 0, stringLength);
+      readNBytesOrThrow(input, stringBuffer, stringLength);
       npArrays.stringsArrays[currentMatrixIndex][currentRow][currentColumn] = new String(stringBuffer, 0, stringLength);
       currentColumn++;
       if (currentColumn == columnString[currentMatrixIndex]) {
@@ -301,13 +301,13 @@ public class NpArraySerializers {
     int intSize;
     int floatSize;
     int stringSize;
-    fis.read(bytes8);
+    readFullOrThrow(fis, bytes8);
     version = new String(bytes8);
-    fis.read(bytes4);
+    readFullOrThrow(fis, bytes4);
     intSize = bytesToInt(bytes4);
-    fis.read(bytes4);
+    readFullOrThrow(fis, bytes4);
     floatSize = bytesToInt(bytes4);
-    fis.read(bytes4);
+    readFullOrThrow(fis, bytes4);
     stringSize = bytesToInt(bytes4);
 
     if (!onlyHeaders) {
@@ -496,7 +496,7 @@ public class NpArraySerializers {
       size = offsetNameCurrent[index + 1] - offsetNameCurrent[index];
     }
     byte[] bytesName = new byte[(int) size];
-    input.read(bytesName);
+    readFullOrThrow(input, bytesName);
     return bytesName;
   }
 
@@ -559,7 +559,7 @@ public class NpArraySerializers {
   }
 
   private static void readPartArray(InputStream input, ByteBuffer byteBuffer, byte[] bytes, int limit) throws IOException {
-    input.read(bytes, 0, limit);
+    readNBytesOrThrow(input, bytes, limit);
     byteBuffer.limit(limit);
     byteBuffer.put(bytes, 0, limit);
     byteBuffer.rewind();
@@ -663,7 +663,7 @@ public class NpArraySerializers {
       if (BLOCK_DELIMITER == start) {
         break;
       }
-      input.read(bytes);
+      readFullOrThrow(input, bytes);
 
       System.arraycopy(bytes, 0, bytesAll, 1, bytes.length);
       bytesAll[0] = start;
@@ -727,4 +727,14 @@ public class NpArraySerializers {
     }
   }
 
+  private static void readFullOrThrow(InputStream inputStream, byte[] buff) throws IOException {
+    readNBytesOrThrow(inputStream, buff, buff.length);
+  }
+
+  private static void readNBytesOrThrow(InputStream inputStream, byte[] buff, int len) throws IOException {
+    int read = inputStream.readNBytes(buff, 0, len);
+    if (read != len) {
+      throw new IOException("read only " + read + " bytes, expected " + len);
+    }
+  }
 }
