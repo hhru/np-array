@@ -15,7 +15,176 @@ import java.nio.file.Paths;
 public class NpArraysTest {
 
   @Test
-  public void testSerializer() throws IOException, ClassNotFoundException {
+  public void testNewSerialization() throws IOException {
+
+    int[][] ints = generateArrayInt(2, 2, 5);
+    float[][] floats = generateArrayFloat(10, 45, 764.67f);
+    String[][] strings = generateArrayString(12, 65, "dr12ЯЯЯ");
+    strings[1][1] = "привет!!!!";
+
+    Path pathNew = Paths.get("123");
+    try (var serializer = new NpArraySerializer(pathNew)) {
+      serializer.writeArray("1test", ints);
+      serializer.writeArray("2test", floats);
+      serializer.writeArray("3test", strings);
+    }
+
+    int[][] deserializedInts;
+    float[][] deserializedFloats;
+    String[][] deserializedString;
+
+    try (var deserializer = new NpArrayDeserializer(pathNew)) {
+      deserializedInts = deserializer.getIntArray("1test");
+      deserializedFloats = deserializer.getFloatArray("2test");
+      deserializedString = deserializer.getStringArray("3test");
+    }
+
+    assertArrayEquals(ints, deserializedInts);
+    assertArrayEquals(floats, deserializedFloats);
+    assertArrayEquals(strings, deserializedString);
+
+    Files.delete(pathNew);
+
+  }
+
+  @Test
+  public void testNewSerializationOneByOne() throws IOException {
+
+    int[][] ints = generateArrayInt(2, 2, 5);
+    float[][] floats = generateArrayFloat(10, 45, 764.67f);
+    String[][] strings = generateArrayString(12, 65, "dr12ЯЯЯ");
+    strings[1][1] = "привет!!!!";
+
+    Path pathNew = Paths.get("123");
+    try (var serializer = new NpArraySerializer(pathNew)) {
+      serializer.writeArray("1test", ints);
+      serializer.writeArray("2test", floats);
+      serializer.writeArray("3test", strings);
+    }
+
+    int[][] deserializedInts;
+    float[][] deserializedFloats;
+    String[][] deserializedString;
+
+    try (var deserializer = new NpArrayDeserializer(pathNew)) {
+      deserializedInts = deserializer.getIntArray("1test");
+      deserializedFloats = deserializer.getFloatArray("2test");
+      deserializedString = deserializer.getStringArray("3test");
+    }
+
+    assertArrayEquals(ints, deserializedInts);
+    assertArrayEquals(floats, deserializedFloats);
+    assertArrayEquals(strings, deserializedString);
+
+    Files.delete(pathNew);
+
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testIncorrectOrderSerialize() throws IOException {
+
+    int[][] ints = generateArrayInt(2, 2, 5);
+    float[][] floats = generateArrayFloat(10, 45, (float) Math.PI);
+
+    Path pathNew = Paths.get("123");
+    try (var serializer = new NpArraySerializer(pathNew)) {
+      serializer.writeArray("2test", floats);
+      serializer.writeArray("1test", ints);
+    }
+
+    Files.delete(pathNew);
+
+  }
+
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testIncorrectOrderAccess() throws IOException {
+
+    int[][] ints = generateArrayInt(2, 2, 5);
+    float[][] floats = generateArrayFloat(10, 45, (float) Math.PI);
+
+    Path pathNew = Paths.get("123");
+    try (var serializer = new NpArraySerializer(pathNew)) {
+      serializer.writeArray("2test", floats);
+      serializer.writeArray("1test", ints);
+    }
+
+    try (var deserializer = new NpArrayDeserializer(pathNew)) {
+      deserializer.getFloatArray("2test");
+      deserializer.getIntArray("1test");
+    } finally {
+      Files.delete(Paths.get("123"));
+    }
+
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testGetNonexistentArray() throws IOException {
+
+    int[][] ints = generateArrayInt(2, 2, 5);
+    float[][] floats = generateArrayFloat(10, 45, (float) Math.PI);
+
+    Path pathNew = Paths.get("123");
+    try (var serializer = new NpArraySerializer(pathNew)) {
+      serializer.writeArray("1test", ints);
+      serializer.writeArray("2test", floats);
+    }
+
+    try (var deserializer = new NpArrayDeserializer(pathNew)) {
+      deserializer.getFloatArray("4test");
+    } finally {
+      Files.delete(Paths.get("123"));
+    }
+
+  }
+
+  @Test
+  public void testBackwardCompatibility() throws IOException {
+
+    var oldPath = Paths.get("123_old");
+    var newPath = Paths.get("123_new");
+
+    NpArrays npArrays = new NpArrays();
+    float[][] floats1 = generateArrayFloat(2, 2, 2.4f);
+    npArrays.add(floats1, "10_10_2.4");
+    float[][] floats2 = generateArrayFloat(2, 2, -5.2f);
+    npArrays.add(floats2, "20_20_5.2");
+    int[][] ints1 = generateArrayInt(2, 2, 5);
+    npArrays.add(ints1, "20_20_5");
+    int[][] ints2 = generateArrayInt(2, 2, -6);
+    npArrays.add(ints2, "20_20_6");
+    String[][] strings1 = generateArrayString(2, 3, "hello");
+    npArrays.add(strings1, "30_30_hello");
+    String[][] strings2 = generateArrayString(2, 3, "хай");
+    npArrays.add(strings2, "40_40_hi");
+
+    NpArraySerializers.serialize(npArrays, oldPath);
+    NpArrays oldNpArrays = NpArraySerializers.deserialize(oldPath);
+
+    try (var serializer = new NpArraySerializer(newPath)) {
+      serializer.writeArray("10_10_2.4", floats1);
+      serializer.writeArray("20_20_5", ints1);
+      serializer.writeArray("20_20_5.2", floats2);
+      serializer.writeArray("20_20_6", ints2);
+      serializer.writeArray("30_30_hello", strings1);
+      serializer.writeArray("40_40_hi", strings2);
+    }
+
+    NpArrays newNpArrays = NpArraySerializers.deserialize(newPath);
+
+    assertArrayEquals(newNpArrays.getFloatArray("10_10_2.4"), oldNpArrays.getFloatArray("10_10_2.4"));
+    assertArrayEquals(newNpArrays.getFloatArray("20_20_5.2"), oldNpArrays.getFloatArray("20_20_5.2"));
+    assertArrayEquals(newNpArrays.getIntArray("20_20_5"), oldNpArrays.getIntArray("20_20_5"));
+    assertArrayEquals(newNpArrays.getIntArray("20_20_6"), oldNpArrays.getIntArray("20_20_6"));
+    assertArrayEquals(newNpArrays.getStringArray("30_30_hello"), oldNpArrays.getStringArray("30_30_hello"));
+    assertArrayEquals(newNpArrays.getStringArray("40_40_hi"), oldNpArrays.getStringArray("40_40_hi"));
+
+    Files.delete(oldPath);
+    Files.delete(newPath);
+  }
+
+  @Test
+  public void testSerializer() throws IOException {
     NpArrays npArrays = new NpArrays();
     float[][] floats1 = generateArrayFloat(2, 2, 2.4f);
     npArrays.add(floats1, "10_10_2.4");
@@ -82,6 +251,22 @@ public class NpArraysTest {
   }
 
   @Test
+  public void onlyFloatsSmallV2() throws IOException {
+    var path = Paths.get("123");
+
+    float[][] floats = generateArrayFloat(2, 2, 2.4f);
+    try (var serializer = new NpArraySerializer(path)) {
+      serializer.writeArray("10_10_2.4", floats);
+    }
+
+    try (var deserializer = new NpArrayDeserializer(path)) {
+      assertArrayEquals(floats, deserializer.getFloatArray("10_10_2.4"));
+    }
+
+    Files.delete(path);
+  }
+
+  @Test
   public void onlyFloats() throws IOException {
     NpArrays npArrays = new NpArrays();
     float[][] floats = generateArrayFloat(3, 3, 2.4f);
@@ -89,6 +274,22 @@ public class NpArraysTest {
     NpArraySerializers.serialize(npArrays, Paths.get("123"));
     NpArrays newNpArrays = NpArraySerializers.deserialize(Paths.get("123"));
     assertArrayEquals(floats, newNpArrays.getFloatArray("10_10_2.4"));
+    Files.delete(Paths.get("123"));
+  }
+
+  @Test
+  public void onlyFloatsV2() throws IOException {
+    var path = Paths.get("123");
+
+    float[][] floats = generateArrayFloat(3, 3, 2.4f);
+    try (var serializer = new NpArraySerializer(path)) {
+      serializer.writeArray("10_10_2.4", floats);
+    }
+
+    try (var deserializer = new NpArrayDeserializer(path)) {
+      assertArrayEquals(floats, deserializer.getFloatArray("10_10_2.4"));
+    }
+
     Files.delete(Paths.get("123"));
   }
 
@@ -104,6 +305,22 @@ public class NpArraysTest {
   }
 
   @Test
+  public void onlyIntegersV2() throws IOException {
+    var path = Paths.get("123");
+
+    int[][] ints = generateArrayInt(100, 100, 2);
+    try (var serializer = new NpArraySerializer(path)) {
+      serializer.writeArray("10_10_2.4", ints);
+    }
+
+    try (var deserializer = new NpArrayDeserializer(path)) {
+      assertArrayEquals(ints, deserializer.getIntArray("10_10_2.4"));
+    }
+
+    Files.delete(Paths.get("123"));
+  }
+
+  @Test
   public void onlyStrings() throws IOException {
     NpArrays npArrays = new NpArrays();
     String[][] strings = generateArrayString(100, 100, "test");
@@ -111,6 +328,22 @@ public class NpArraysTest {
     NpArraySerializers.serialize(npArrays, Paths.get("123"));
     NpArrays newNpArrays = NpArraySerializers.deserialize(Paths.get("123"));
     assertArrayEquals(strings, newNpArrays.getStringArray("10_10_test"));
+    Files.delete(Paths.get("123"));
+  }
+
+  @Test
+  public void onlyStringsV2() throws IOException {
+    var path = Paths.get("123");
+
+    String[][] strings = generateArrayString(100, 100, "test");
+    try (var serializer = new NpArraySerializer(path)) {
+      serializer.writeArray("10_10_test", strings);
+    }
+
+    try (var deserializer = new NpArrayDeserializer(path)) {
+      assertArrayEquals(strings, deserializer.getStringArray("10_10_test"));
+    }
+
     Files.delete(Paths.get("123"));
   }
 
@@ -129,6 +362,26 @@ public class NpArraysTest {
   }
 
   @Test
+  public void stringsWithSpecialSymbolsV2() throws IOException {
+    var path = Paths.get("123");
+
+    String[][] strings = generateArrayString(100, 100, "test");
+    strings[0][0] += "\ntest";
+    strings[0][1] += "\t another test";
+    strings[strings.length - 1][strings[0].length - 1] += "\n";
+
+    try (var serializer = new NpArraySerializer(path)) {
+      serializer.writeArray("10_10_test", strings);
+    }
+
+    try (var deserializer = new NpArrayDeserializer(path)) {
+      assertArrayEquals(strings, deserializer.getStringArray("10_10_test"));
+    }
+
+    Files.delete(path);
+  }
+
+  @Test
   public void loadTest() throws IOException {
     NpArrays npArrays = new NpArrays();
     float[][] floats = generateArrayFloat(100_000, 100, 2.4f);
@@ -142,6 +395,29 @@ public class NpArraysTest {
     System.out.println("Finish deserialize: " + ((System.nanoTime() - time) / 1_000_000));
     assertArrayEquals(floats, newNpArrays.getFloatArray("10_10_2.4"));
 
+    Files.delete(Paths.get("123"));
+  }
+
+  @Test
+  public void loadTestV2() throws IOException {
+    var path = Paths.get("123");
+
+    float[][] floats = generateArrayFloat(100_000, 100, 2.4f);
+
+    long time = System.nanoTime();
+    System.out.println("Start serialize");
+    try (var serializer = new NpArraySerializer(path)) {
+      serializer.writeArray("10_10_2.4", floats);
+    }
+    System.out.println("Finish serialize: " + ((System.nanoTime() - time) / 1_000_000));
+    time = System.nanoTime();
+    float[][] deserializedFloats;
+    try (var deserializer = new NpArrayDeserializer(path)) {
+      deserializedFloats = deserializer.getFloatArray("10_10_2.4");
+    }
+    System.out.println("Finish deserialize: " + ((System.nanoTime() - time) / 1_000_000));
+    assertArrayEquals(floats, deserializedFloats);
+    Files.delete(path);
   }
 
   @Test
@@ -172,6 +448,8 @@ public class NpArraysTest {
     assertArrayEquals(ints2, newInts2);
     assertArrayEquals(strings2, newStrings2);
     assertArrayEquals(strings1, newStrings1);
+
+    Files.delete(path);
   }
 
   @Test
@@ -197,6 +475,37 @@ public class NpArraysTest {
     assertArrayEquals(ints2, NpArraySerializers.getIntArray(path, headers, "looongInt2"));
     assertArrayEquals(strings1, NpArraySerializers.getStringArray(path, headers, "looongString1"));
     assertArrayEquals(strings2, NpArraySerializers.getStringArray(path, headers, "looongString2"));
+
+    Files.delete(path);
+  }
+
+  @Test
+  @Ignore
+  public void hugeArrayTestV2() throws IOException {
+    var path = Paths.get("123");
+    float[][] floats1 = generateArrayFloat(580_864_151, 1, 2.4f);
+    int[][] ints1 = generateArrayInt(580_864_151, 1, 5);
+    int[][] ints2 = generateArrayInt(580_864_151, 1, 10);
+    String[][] strings1 = generateArrayString(580_864_151, 1, "test");
+    String[][] strings2 = generateArrayString(580_864_151, 2, "another");
+
+    try (var serializer = new NpArraySerializer(path)) {
+      serializer.writeArray("looongFloat", floats1);
+      serializer.writeArray("looongInt1", ints1);
+      serializer.writeArray("looongInt2", ints2);
+      serializer.writeArray("looongString1", strings1);
+      serializer.writeArray("looongString2", strings2);
+    }
+
+    try (var deserializer = new NpArrayDeserializer(path)) {
+      assertArrayEquals(floats1, deserializer.getFloatArray("looongFloat"));
+      assertArrayEquals(ints1, deserializer.getIntArray("looongInt1"));
+      assertArrayEquals(ints2, deserializer.getIntArray("looongInt2"));
+      assertArrayEquals(strings1, deserializer.getStringArray("looongString1"));
+      assertArrayEquals(strings2, deserializer.getStringArray("looongString2"));
+    }
+
+    Files.delete(path);
   }
 
   @Test
@@ -223,6 +532,8 @@ public class NpArraysTest {
     assertArrayEquals(ints2, result.getIntArray("looongInt2"));
     assertArrayEquals(strings1, result.getStringArray("looongString1"));
     assertArrayEquals(strings2, result.getStringArray("looongString2"));
+
+    Files.delete(path);
   }
 
   private float[][] generateArrayFloat(int column, int row, float elem) {

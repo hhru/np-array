@@ -1,21 +1,15 @@
-# coding=utf-8
-
 import tempfile
-import sys
 
 import unittest
 import numpy as np
 
-from nparray import serialize, deserialize
+from nparray import STRING_TYPE
+from nparray.deserializer import Deserializer
+from nparray.serializer import Serializer
 
 
 class TestNPArrays(unittest.TestCase):
     def test_serialization(self):
-
-        if sys.version_info < (3, 0):
-            STRING_TYPE = np.string_
-        else:
-            STRING_TYPE = np.unicode_
 
         floats = np.zeros((1, 2), dtype='float32')
         floats[0][0] = 10.344
@@ -59,10 +53,17 @@ class TestNPArrays(unittest.TestCase):
 
         fp, filename = tempfile.mkstemp()
 
-        serialize(filename, **data)
-        result = deserialize(filename)
-        serialize(filename, **result)
-        result = deserialize(filename)
+        with Serializer(filename) as serializer:
+            serializer.serialize(**data)
+
+        with Deserializer(filename) as deserializer:
+            result = deserializer.deserialize()
+
+        with Serializer(filename) as serializer:
+            serializer.serialize(**result)
+
+        with Deserializer(filename) as deserializer:
+            result = deserializer.deserialize()
 
         self.assertTrue(np.array_equal(ints, result['super_matrix']))
         self.assertTrue(np.array_equal(ints2, result['data']))
@@ -70,3 +71,140 @@ class TestNPArrays(unittest.TestCase):
         self.assertTrue(np.array_equal(strings1, result['byte_string1']))
         self.assertTrue(np.array_equal(strings2, result['byte_string2']))
         self.assertTrue(np.array_equal(strings3, result['byte_string3']))
+
+    def test_ordered_read(self):
+        floats = np.zeros((1, 2), dtype='float32')
+        floats[0][0] = 10.344
+        floats[0][1] = -10.344
+
+        ints = np.zeros((2, 1), dtype='int32')
+        ints[0][0] = 45435444
+        ints[1][0] = 1111
+
+        data = {
+            '2test': floats,
+            '1test': ints
+        }
+        _, filename = tempfile.mkstemp()
+        with Serializer(filename) as serializer:
+            serializer.serialize(**data)
+
+        with Deserializer(filename) as deserializer:
+            self.assertTrue(np.array_equal(ints, deserializer.get_array('1test')))
+            self.assertTrue(np.array_equal(floats, deserializer.get_array('2test')))
+
+    def test_ordered_write(self):
+        floats = np.zeros((1, 2), dtype='float32')
+        floats[0][0] = 10.344
+        floats[0][1] = -10.344
+
+        ints = np.zeros((2, 1), dtype='int32')
+        ints[0][0] = 45435444
+        ints[1][0] = 1111
+
+        _, filename = tempfile.mkstemp()
+        with Serializer(filename) as serializer:
+            serializer.write_array('1test', ints)
+            serializer.write_array('2test', floats)
+
+        with Deserializer(filename) as deserializer:
+            self.assertTrue(np.array_equal(ints, deserializer.get_array('1test')))
+            self.assertTrue(np.array_equal(floats, deserializer.get_array('2test')))
+
+    def test_partially_read(self):
+        floats = np.zeros((1, 2), dtype='float32')
+        floats[0][0] = 10.344
+        floats[0][1] = -10.344
+
+        ints = np.zeros((2, 1), dtype='int32')
+        ints[0][0] = 45435444
+        ints[1][0] = 1111
+
+        data = {
+            '2test': floats,
+            '1test': ints
+        }
+        _, filename = tempfile.mkstemp()
+        with Serializer(filename) as serializer:
+            serializer.serialize(**data)
+
+        with Deserializer(filename) as deserializer:
+            self.assertTrue(np.array_equal(floats, deserializer.get_array('2test')))
+
+    def test_incorrect_read_order(self):
+        with self.assertRaises(Exception) as raise_context:
+            floats = np.zeros((1, 2), dtype='float32')
+            floats[0][0] = 10.344
+            floats[0][1] = -10.344
+
+            ints = np.zeros((2, 1), dtype='int32')
+            ints[0][0] = 45435444
+            ints[1][0] = 1111
+
+            data = {
+                '2test': floats,
+                '1test': ints
+            }
+            _, filename = tempfile.mkstemp()
+            with Serializer(filename) as serializer:
+                serializer.serialize(**data)
+
+            with Deserializer(filename) as deserializer:
+                self.assertTrue(np.array_equal(floats, deserializer.get_array('2test')))
+                self.assertTrue(np.array_equal(floats, deserializer.get_array('1test')))
+
+        self.assertTrue('Incorrect name order' in raise_context.exception.args)
+
+    def test_incorrect_write_order(self):
+        with self.assertRaises(Exception) as raise_context:
+            floats = np.zeros((1, 2), dtype='float32')
+            floats[0][0] = 10.344
+            floats[0][1] = -10.344
+
+            ints = np.zeros((2, 1), dtype='int32')
+            ints[0][0] = 45435444
+            ints[1][0] = 1111
+
+            _, filename = tempfile.mkstemp()
+            with Serializer(filename) as serializer:
+                serializer.write_array('2test', floats)
+                serializer.write_array('1test', ints)
+
+        self.assertTrue('Incorrect name order' in raise_context.exception.args)
+
+    def test_read_nonexistent_array(self):
+        with self.assertRaises(Exception) as raise_context:
+            floats = np.zeros((1, 2), dtype='float32')
+            floats[0][0] = 10.344
+            floats[0][1] = -10.344
+
+            ints = np.zeros((2, 1), dtype='int32')
+            ints[0][0] = 45435444
+            ints[1][0] = 1111
+
+            data = {
+                '2test': floats,
+                '1test': ints
+            }
+            _, filename = tempfile.mkstemp()
+            with Serializer(filename) as serializer:
+                serializer.serialize(**data)
+
+            name = 'abc'
+            with Deserializer(filename) as deserializer:
+                self.assertTrue(np.array_equal(floats, deserializer.get_array(name)))
+
+        self.assertTrue(('Failed to find array: ' + name) in raise_context.exception.args)
+
+    def test_serialize_too_big_array(self):
+        with self.assertRaises(Exception) as raise_context:
+            name_big_array = 'too_big'
+            name_normal_array = 'normal'
+            data = {
+                name_big_array: np.zeros((2 ** 31 - 7, 1), dtype='float32'),
+                name_normal_array: np.zeros((10, 3), dtype='float32')
+            }
+            _, filename = tempfile.mkstemp()
+            with Serializer(filename) as serializer:
+                serializer.serialize(**data)
+        self.assertTrue(('Dimension exceeds acceptable value for: ' + name_big_array) in raise_context.exception.args)

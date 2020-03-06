@@ -13,6 +13,7 @@ setup(
     test_suite='tests',
     tests_require=[
         'numpy',
+        'pycodestyle == 2.5.0'
     ],
     zip_safe=False
 )

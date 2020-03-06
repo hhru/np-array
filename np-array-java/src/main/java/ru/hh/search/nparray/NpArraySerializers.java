@@ -16,7 +16,6 @@ import java.util.List;
 public class NpArraySerializers {
 
   private static final byte BLOCK_DELIMITER = '\n';
-  private static final byte STRING_DELIMITER = '\n';
   private static final int BYTES_4 = 4;
   private static final int BYTES_8 = 8;
   private static final int BUFFER_SIZE = 8192 * 2;
@@ -245,32 +244,6 @@ public class NpArraySerializers {
     }
   }
 
-  @Deprecated
-  private static byte[] getTailBytesOldVersion(byte[] bytes, int lastDelimiterIndex, int bytesRead) {
-    byte[] tailBytes;
-    if (lastDelimiterIndex < BUFFER_SIZE - 1 && bytesRead == BUFFER_SIZE) {
-      tailBytes = new byte[BUFFER_SIZE - lastDelimiterIndex - 1];
-      System.arraycopy(bytes, lastDelimiterIndex + 1, tailBytes, 0, BUFFER_SIZE - lastDelimiterIndex - 1);
-    } else {
-      tailBytes = null;
-    }
-    return tailBytes;
-  }
-
-  @Deprecated
-  private static byte[] getEffectiveBytes(byte[] bytes, byte[] tailBytes, int lastDelimiterIndex) {
-    byte[] effectiveBytes;
-    if (tailBytes != null) {
-      effectiveBytes = new byte[lastDelimiterIndex + tailBytes.length];
-      System.arraycopy(tailBytes, 0, effectiveBytes, 0, tailBytes.length);
-      System.arraycopy(bytes, 0, effectiveBytes, tailBytes.length, lastDelimiterIndex);
-    } else {
-      effectiveBytes = new byte[lastDelimiterIndex];
-      System.arraycopy(bytes, 0, effectiveBytes, 0, lastDelimiterIndex);
-    }
-    return effectiveBytes;
-  }
-
   private static int getKey(String[] names, String key) {
     if (key == null) {
       throw new IllegalArgumentException("Key is null");
@@ -303,6 +276,12 @@ public class NpArraySerializers {
     int stringSize;
     readFullOrThrow(fis, bytes8);
     version = new String(bytes8);
+
+    if (version.equals(NpArraysV2.ACTUAL_VERSION)) {
+      var newDeserializer = new NpArrayDeserializer(fis);
+      return newDeserializer.deserialize();
+    }
+
     readFullOrThrow(fis, bytes4);
     intSize = bytesToInt(bytes4);
     readFullOrThrow(fis, bytes4);
@@ -362,11 +341,7 @@ public class NpArraySerializers {
     NpArrays npArrays = (NpArrays) npBase;
     readArraysInt(fis, intSize, npArrays, rowsInt, columnInt);
     readArraysFloat(fis, floatSize, npArrays, rowsFloat, columnFloat);
-    if (version.equals(NpBase.ACTUAL_VERSION)) {
-      readArraysString(fis, stringSize, npArrays, rowsString, columnString);
-    } else {
-      readArraysStringOldVersion(fis, stringSize, npArrays, rowsString, columnString);
-    }
+    readArraysString(fis, stringSize, npArrays, rowsString, columnString);
     return npArrays;
   }
 
@@ -605,54 +580,6 @@ public class NpArraySerializers {
       npArrays.stringsArrays[i] = new String[rowsString[i]][columnString[i]];
     }
     readStringArray(new BufferedInputStream(input, BUFFER_SIZE), npArrays, rowsString, columnString, null);
-  }
-
-  @Deprecated
-  private static void readArraysStringOldVersion(InputStream input, int stringSize, NpArrays npArrays,
-                                       int[] rowsString, int[] columnString) throws IOException {
-    if (stringSize == 0) {
-      return;
-    }
-    for (int i = 0; i < stringSize; i++) {
-      npArrays.stringsArrays[i] = new String[rowsString[i]][columnString[i]];
-    }
-
-    byte[] bytes = new byte[BUFFER_SIZE];
-    byte[] tailBytes = null;
-
-    int bytesRead;
-    int currentMatrix = 0;
-    int currentMatrixRow = 0;
-    int currentMatrixCol = 0;
-    String delimiter = new String(new byte[]{STRING_DELIMITER});
-    while ((bytesRead = input.read(bytes)) > 0) {
-      int lastDelimiterIndex = bytesRead == BUFFER_SIZE ? lastIndexOf(bytes, STRING_DELIMITER) : bytesRead - 1;
-      byte[] effectiveBytes = getEffectiveBytes(bytes, tailBytes, lastDelimiterIndex);
-      tailBytes = getTailBytesOldVersion(bytes, lastDelimiterIndex, bytesRead);
-      String allStrings = new String(effectiveBytes);
-      for (String elem : allStrings.split(delimiter)) {
-        npArrays.stringsArrays[currentMatrix][currentMatrixRow][currentMatrixCol] = elem;
-        currentMatrixCol++;
-        if (currentMatrixCol == columnString[currentMatrix]) {
-          currentMatrixCol = 0;
-          currentMatrixRow++;
-        }
-        if (currentMatrixRow == rowsString[currentMatrix]) {
-          currentMatrixRow = 0;
-          currentMatrix++;
-        }
-      }
-    }
-  }
-
-  @Deprecated
-  private static int lastIndexOf(byte[] bytes, byte value) {
-    for (int i = bytes.length - 1; i > 0; i--) {
-      if (bytes[i] == value) {
-        return i;
-      }
-    }
-    return -1;
   }
 
   private static void readMetadata(byte[] bytes, byte[] bytesAll, byte[] bytes4, byte[] bytes8,

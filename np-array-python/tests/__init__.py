@@ -1,18 +1,13 @@
-# coding=utf-8
-
 import collections
 import sys
 
 import numpy as np
 
-from nparray import serialize
+from nparray.serializer import Serializer
 
 if __name__ == '__main__':
 
-    if sys.version_info < (3, 0):
-        STRING_TYPE = np.string_
-    else:
-        STRING_TYPE = np.unicode_
+    STRING_TYPE = np.unicode_
 
     floats1 = np.zeros((2, 3), dtype='float32')
     floats1[0][0] = 10.0001
@@ -64,4 +59,5 @@ if __name__ == '__main__':
     data['байт_стринга1'] = strings1
     data['строчечка3'] = strings3
 
-    serialize(sys.argv[1], **data)
+    with Serializer(sys.argv[1]) as serializer:
+        serializer.serialize(**data)
