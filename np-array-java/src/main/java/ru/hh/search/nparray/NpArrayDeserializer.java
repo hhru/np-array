@@ -37,31 +37,6 @@ public class NpArrayDeserializer implements AutoCloseable {
     this.in = new BufferedInputStream(in, BUFFER_SIZE);
   }
 
-  // TODO: удалить после чистки старого кода
-  public NpBase deserialize() throws IOException {
-    Metadata metadata;
-    NpArrays result = new NpArrays();
-
-    while (true) {
-      try {
-        metadata = readMetadata();
-      } catch (IllegalArgumentException e) {
-        return result;
-      }
-
-      if (metadata.getTypeDescriptor() == TypeDescriptor.INTEGER.getValue()) {
-        result.add(getIntArrayLargeRows(metadata.getRows(), metadata.getColumns()), metadata.getArrayName());
-      } else if (metadata.getTypeDescriptor() == TypeDescriptor.FLOAT.getValue()) {
-        result.add(getFloatArrayLargeRows(metadata.getRows(), metadata.getColumns()), metadata.getArrayName());
-      } else if (metadata.getTypeDescriptor() == TypeDescriptor.STRING.getValue()) {
-        result.add(getStringArray(metadata.getRows(), metadata.getColumns()), metadata.getArrayName());
-      } else {
-        throw new IllegalStateException("Incorrect type descriptor: " + metadata.getTypeDescriptor());
-      }
-
-    }
-  }
-
   public int[][] getIntArray(String name) throws IOException {
     prepareReading(name);
     var metadata = findTargetArrayMetadata(name, TypeDescriptor.INTEGER);
@@ -149,11 +124,6 @@ public class NpArrayDeserializer implements AutoCloseable {
     var metadata = findTargetArrayMetadata(name, TypeDescriptor.STRING);
     int rows = metadata.getRows();
     int columns = metadata.getColumns();
-    return getStringArray(rows, columns);
-  }
-
-  // TODO: перенести в getStringArray(String name), функция как отдельная нужна только для более удобной обратной совместимости
-  private String[][] getStringArray(int rows, int columns) throws IOException {
     var data = new String[rows][columns];
     for (int i = 0; i < rows; i++) {
       for (int j = 0; j < columns; j++) {

@@ -1,11 +1,9 @@
 import numpy as np
 
 from struct import unpack
-from operator import itemgetter
-from itertools import chain
 from typing import Union, Any
 
-from nparray import VERSION, SUPPORTED_VERSIONS, VERSION_SIZE, NUMBER_SIZE, STRING_TYPE, Metadata, TypeDescriptor
+from nparray import SUPPORTED_VERSIONS, VERSION_SIZE, NUMBER_SIZE, STRING_TYPE, Metadata, TypeDescriptor
 
 
 HEADER_DELIMITER = '\n'
@@ -77,34 +75,6 @@ class Deserializer:
             arr.append(row)
         return np.asarray(arr, dtype=STRING_TYPE).reshape((rows, columns))
 
-    def _old_deserialize(self) -> dict:
-        int_arrays_count, float_arrays_count, str_arrays_count = unpack(COUNT_STRUCT, self.fp.read(COUNT_SIZE))
-
-        int_headers = self._read_headers(int_arrays_count)
-        float_headers = self._read_headers(float_arrays_count)
-        str_headers = self._read_headers(str_arrays_count)
-
-        name_offsets = list(map(itemgetter(2), chain(int_headers, float_headers, str_headers)))
-        name_offsets.append(min(map(itemgetter(3), chain(int_headers, float_headers, str_headers))))
-
-        names = []
-
-        start = name_offsets[0]
-        for offset in name_offsets[1:]:
-            names.append(from_bytes(self.fp.read(offset - start)))
-            start = offset
-
-        int_arrays = [self._read_array(header[0], header[1], 'i4') for header in int_headers]
-        float_arrays = [self._read_array(header[0], header[1], 'f4') for header in float_headers]
-
-        str_offsets = list(map(itemgetter(3), str_headers))
-        str_bytes_to_read = list(np.diff(str_offsets))
-        str_bytes_to_read.append(-1)  # read till the end
-        str_arrays = [self._read_string_array(header[0], header[1], bytes_to_read)
-                      for header, bytes_to_read in zip(str_headers, str_bytes_to_read)]
-
-        return dict(zip(names, chain(int_arrays, float_arrays, str_arrays)))
-
     def _read_current_array(self, metadata: Metadata) -> Any:
         if metadata.type_descriptor == TypeDescriptor.INTEGER:
             arr = self._read_array(metadata.rows, metadata.columns, 'i4')
@@ -118,8 +88,6 @@ class Deserializer:
 
     def deserialize(self) -> dict:
         self._read_version_if_necessary()
-        if self.version != VERSION:
-            return self._old_deserialize()
         result = {}
         metadata = self._read_metadata()
         while metadata is not None:

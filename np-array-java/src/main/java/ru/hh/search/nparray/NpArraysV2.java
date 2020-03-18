@@ -11,7 +11,7 @@ import java.util.Set;
 
 public class NpArraysV2 {
   public static final String ACTUAL_VERSION = "U20PJBYW";
-  public static final Set<String> SUPPORTED_VERSIONS = Set.of(ACTUAL_VERSION, "swkFx7VJ");
+  public static final Set<String> SUPPORTED_VERSIONS = Set.of(ACTUAL_VERSION);
 
   private List<AbstractArray> arrays;
 
