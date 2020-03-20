@@ -52,7 +52,7 @@ public class NpArrayDeserializer implements AutoCloseable {
       if (metadata.getTypeDescriptor() == TypeDescriptor.INTEGER.getValue()) {
         result.add(getIntArrayLargeRows(metadata.getRows(), metadata.getColumns()), metadata.getArrayName());
       } else if (metadata.getTypeDescriptor() == TypeDescriptor.FLOAT.getValue()) {
-        result.add(getFloatArraySmallRows(metadata.getRows(), metadata.getColumns()), metadata.getArrayName());
+        result.add(getFloatArrayLargeRows(metadata.getRows(), metadata.getColumns()), metadata.getArrayName());
       } else if (metadata.getTypeDescriptor() == TypeDescriptor.STRING.getValue()) {
         result.add(getStringArray(metadata.getRows(), metadata.getColumns()), metadata.getArrayName());
       } else {
