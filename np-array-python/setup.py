@@ -1,11 +1,12 @@
 # coding=utf-8
 
 from setuptools import setup
+from nparray.version import version
 
 
 setup(
     name='nparray',
-    version='1.0.7',
+    version=version,
     description='NumPy arrays serializer/deserializer',
     packages=[
         'nparray'
