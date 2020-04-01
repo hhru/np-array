@@ -66,7 +66,7 @@ public class NpArraySerializer implements AutoCloseable {
     if (version != null) {
       return;
     }
-    version = NpArraysV2.ACTUAL_VERSION;
+    version = NpArrays.ACTUAL_VERSION;
     out.write(version.getBytes());
   }
 

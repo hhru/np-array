@@ -10,6 +10,7 @@ import org.junit.Before;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 
 public class NpArraysTest {
@@ -55,6 +56,41 @@ public class NpArraysTest {
     assertArrayEquals(ints, deserializedInts);
     assertArrayEquals(floats, deserializedFloats);
     assertArrayEquals(strings, deserializedString);
+
+  }
+
+  @Test
+  public void testDeserializeAll() throws IOException {
+
+    int[][] ints = generateArrayInt(2, 2, 5);
+    float[][] floats = generateArrayFloat(10, 45, 764.67f);
+    String[][] strings = generateArrayString(12, 65, "dr12ЯЯЯ");
+    strings[1][1] = "привет!!!!";
+
+    try (var serializer = new NpArraySerializer(tempFilePath)) {
+      serializer.writeArray("1test", ints);
+      serializer.writeArray("2test", floats);
+      serializer.writeArray("3test", strings);
+    }
+
+    int[][] deserializedInts;
+    float[][] deserializedFloats;
+    String[][] deserializedString;
+
+    try (var deserializer = new NpArrayDeserializer(tempFilePath)) {
+      deserializedInts = deserializer.getIntArray("1test");
+      deserializedFloats = deserializer.getFloatArray("2test");
+      deserializedString = deserializer.getStringArray("3test");
+    }
+
+    Map<String, Object> matrices;
+    try (var deserializer = new NpArrayDeserializer(tempFilePath)) {
+      matrices = deserializer.deserialize();
+    }
+
+    assertArrayEquals(deserializedInts, (int[][])matrices.get("1test"));
+    assertArrayEquals(deserializedFloats, (float[][])matrices.get("2test"));
+    assertArrayEquals(deserializedString, (String[][])matrices.get("3test"));
 
   }
 

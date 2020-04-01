@@ -9,13 +9,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-public class NpArraysV2 {
+public class NpArrays {
   public static final String ACTUAL_VERSION = "U20PJBYW";
   public static final Set<String> SUPPORTED_VERSIONS = Set.of(ACTUAL_VERSION);
 
   private List<AbstractArray> arrays;
 
-  public NpArraysV2() {
+  public NpArrays() {
     arrays = new ArrayList<>();
   }
 

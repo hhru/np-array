@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.VarHandle;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 
 import static ru.hh.search.nparray.arrays.FloatArray.FLOAT_SIZE;
 import static ru.hh.search.nparray.arrays.IntArray.INT_SIZE;
@@ -35,6 +37,24 @@ public class NpArrayDeserializer implements AutoCloseable {
 
   public NpArrayDeserializer(InputStream in) {
     this.in = new BufferedInputStream(in, BUFFER_SIZE);
+  }
+
+  public Map<String, Object> deserialize() throws IOException {
+    readVersionIfNecessary();
+    Map<String, Object> result = new HashMap<>();
+    Metadata metadata;
+    while ((metadata = readMetadata()) != null) {
+      if (metadata.getTypeDescriptor() == TypeDescriptor.INTEGER.getValue()) {
+        result.put(metadata.getArrayName(), getIntArrayLargeRows(metadata.getRows(), metadata.getColumns()));
+      } else if (metadata.getTypeDescriptor() == TypeDescriptor.FLOAT.getValue()) {
+        result.put(metadata.getArrayName(), getFloatArrayLargeRows(metadata.getRows(), metadata.getColumns()));
+      } else if (metadata.getTypeDescriptor() == TypeDescriptor.STRING.getValue()) {
+        result.put(metadata.getArrayName(), getStringArray(metadata.getRows(), metadata.getColumns()));
+      } else {
+        throw new IllegalStateException("Incorrect type descriptor: " + metadata.getTypeDescriptor());
+      }
+    }
+    return result;
   }
 
   public int[][] getIntArray(String name) throws IOException {
@@ -124,6 +144,10 @@ public class NpArrayDeserializer implements AutoCloseable {
     var metadata = findTargetArrayMetadata(name, TypeDescriptor.STRING);
     int rows = metadata.getRows();
     int columns = metadata.getColumns();
+    return getStringArray(rows, columns);
+  }
+
+  private String[][] getStringArray(int rows, int columns) throws IOException {
     var data = new String[rows][columns];
     for (int i = 0; i < rows; i++) {
       for (int j = 0; j < columns; j++) {
@@ -149,14 +173,21 @@ public class NpArrayDeserializer implements AutoCloseable {
       return;
     }
     version = readString(8);
-    if (!NpArraysV2.SUPPORTED_VERSIONS.contains(version)) {
+    if (!NpArrays.SUPPORTED_VERSIONS.contains(version)) {
       throw new RuntimeException(String.format("Version %s isn't supported", version));
     }
   }
 
   private Metadata findTargetArrayMetadata(String name, TypeDescriptor typeDescriptor) throws IOException {
     Metadata metadata;
-    while (!(metadata = readMetadata()).getArrayName().equals(name)) {
+    while (true) {
+      metadata = readMetadata();
+      if (metadata == null) {
+        throw new IllegalArgumentException("Failed to find array");
+      }
+      if (metadata.getArrayName().equals(name)) {
+        break;
+      }
       skipNBytesOrThrow(metadata.getDataSize());
     }
 
@@ -172,7 +203,7 @@ public class NpArrayDeserializer implements AutoCloseable {
     int readedBytes = in.readNBytes(typeBuffer, 0, INT_SIZE);
     if (readedBytes != INT_SIZE) {
       if (readedBytes <= 0) {
-        throw new IllegalArgumentException("Failed to find array");
+        return null;
       }
       throw new IOException(String.format("read only %s bytes, expected %s", readedBytes, INT_SIZE));
     }
