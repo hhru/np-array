@@ -1,7 +1,7 @@
 # coding=utf-8
 
 from setuptools import setup
-from nparray.version import version
+from version import version
 
 
 setup(
