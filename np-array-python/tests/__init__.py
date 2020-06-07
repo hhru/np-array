@@ -35,6 +35,15 @@ if __name__ == '__main__':
     ints2[0][0] = 455545
     ints2[1][0] = -34444343
 
+    shorts = np.zeros((2, 1), dtype='int16')
+    shorts[0][0] = 3433
+    shorts[1][0] = -2222
+
+    halfs = np.zeros((1, 3), dtype='float16')
+    halfs[0][0] = 1.0
+    halfs[0][1] = -110.9999
+    halfs[0][2] = 1.1E20
+
     strings1 = np.array([
         ['asdcs', '!!!U3gARt7BC9VwlAnxFHQ--'],
         ['апа\nпа', '!-0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz'],
@@ -58,6 +67,8 @@ if __name__ == '__main__':
     data['byte_string2'] = strings2
     data['байт_стринга1'] = strings1
     data['строчечка3'] = strings3
+    data['s'] = shorts
+    data['h'] = halfs
 
     with Serializer(sys.argv[1]) as serializer:
         serializer.serialize(**data)

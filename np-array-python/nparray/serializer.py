@@ -1,7 +1,9 @@
 from struct import pack
 from typing import Any
 
-from nparray import VERSION, Metadata, TypeDescriptor, STRING_TYPE, NUMBER_SIZE
+import numpy as np
+
+from nparray import VERSION, Metadata, TypeDescriptor, STRING_TYPE, NUMBER_SIZE, SHORT_SIZE
 
 MAX_ARRAY_LEN = 2 ** 31 - 9
 
@@ -24,14 +26,13 @@ class Serializer:
         self.fp.close()
 
     @staticmethod
-    def _is_string_array(arr):
-        return arr.dtype.type == STRING_TYPE
-
-    @staticmethod
     def _calc_data_size(arr):
-        if Serializer._is_string_array(arr):
+        if arr.dtype.type == STRING_TYPE:
             return sum(map(lambda h: len(to_bytes(h)), arr.ravel())) + arr.size * NUMBER_SIZE
-        return arr.size * NUMBER_SIZE
+        elif arr.dtype.type == np.int16 or arr.dtype.type == np.float16:
+            return arr.size * SHORT_SIZE
+        else:
+            return arr.size * NUMBER_SIZE
 
     def _write_metadata(self, metadata: Metadata) -> None:
         self.fp.write(pack('>ii', metadata.type_descriptor, len(to_bytes(metadata.array_name))))
@@ -77,8 +78,12 @@ class Serializer:
 
         if type_descriptor == TypeDescriptor.INTEGER:
             arr.astype('>i4').tofile(self.fp)
+        elif type_descriptor == TypeDescriptor.INTEGER16:
+            arr.astype('>i2').tofile(self.fp)
         elif type_descriptor == TypeDescriptor.FLOAT:
             arr.astype('>f4').tofile(self.fp)
+        elif type_descriptor == TypeDescriptor.FLOAT16:
+            arr.astype('>f2').tofile(self.fp)
         elif type_descriptor == TypeDescriptor.STRING:
             self._write_string_array(arr.astype(STRING_TYPE))
         else:

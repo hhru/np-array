@@ -78,8 +78,12 @@ class Deserializer:
     def _read_current_array(self, metadata: Metadata) -> Any:
         if metadata.type_descriptor == TypeDescriptor.INTEGER:
             arr = self._read_array(metadata.rows, metadata.columns, 'i4')
+        elif metadata.type_descriptor == TypeDescriptor.INTEGER16:
+            arr = self._read_array(metadata.rows, metadata.columns, 'i2')
         elif metadata.type_descriptor == TypeDescriptor.FLOAT:
             arr = self._read_array(metadata.rows, metadata.columns, 'f4')
+        elif metadata.type_descriptor == TypeDescriptor.FLOAT16:
+            arr = self._read_array(metadata.rows, metadata.columns, 'f2')
         elif metadata.type_descriptor == TypeDescriptor.STRING:
             arr = self._read_string_array(metadata.rows, metadata.columns, metadata.data_size)
         else:

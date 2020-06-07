@@ -2,11 +2,14 @@ package ru.hh.search.nparray;
 
 import ru.hh.search.nparray.arrays.AbstractArray;
 import ru.hh.search.nparray.arrays.FloatArray;
+import ru.hh.search.nparray.arrays.HalfArray;
 import ru.hh.search.nparray.arrays.IntArray;
+import ru.hh.search.nparray.arrays.ShortArray;
 import ru.hh.search.nparray.arrays.StringArray;
 import ru.hh.search.nparray.serializers.FloatSerializer;
 import ru.hh.search.nparray.serializers.IntSerializer;
 import ru.hh.search.nparray.serializers.Serializer;
+import ru.hh.search.nparray.serializers.ShortSerializer;
 import ru.hh.search.nparray.serializers.StringSerializer;
 
 import java.io.BufferedOutputStream;
@@ -43,6 +46,14 @@ public class NpArraySerializer implements AutoCloseable {
 
   public void writeArray(String name, String[][] array) throws IOException {
     writeArray(new StringArray(name, array));
+  }
+
+  public void writeArray(String name, short[][] array) throws IOException {
+    writeArray(new ShortArray(name, array));
+  }
+
+  public void writeHalfArray(String name, short[][] array) throws IOException {
+    writeArray(new HalfArray(name, array));
   }
 
   private void writeArray(AbstractArray array) throws IOException {
@@ -91,6 +102,8 @@ public class NpArraySerializer implements AutoCloseable {
         serializer = new FloatSerializer(out);
       } else if (clazz == StringArray.class) {
         serializer = new StringSerializer(out);
+      } else if (clazz == ShortArray.class || clazz == HalfArray.class) {
+        serializer = new ShortSerializer(out);
       } else {
         throw new IllegalArgumentException(String.format("unknown type: %s", clazz));
       }

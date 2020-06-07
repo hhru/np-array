@@ -35,28 +35,37 @@ public class NpArraysTest {
     int[][] ints = generateArrayInt(2, 2, 5);
     float[][] floats = generateArrayFloat(10, 45, 764.67f);
     String[][] strings = generateArrayString(12, 65, "dr12ЯЯЯ");
+    short[][] shorts = generateArrayShort(15, 75, (short) 634);
+    short[][] halfs = generateArrayShort(50, 50, (short) -224);
     strings[1][1] = "привет!!!!";
 
     try (var serializer = new NpArraySerializer(tempFilePath)) {
       serializer.writeArray("1test", ints);
       serializer.writeArray("2test", floats);
       serializer.writeArray("3test", strings);
+      serializer.writeArray("4test", shorts);
+      serializer.writeHalfArray("5test", halfs);
     }
 
     int[][] deserializedInts;
     float[][] deserializedFloats;
     String[][] deserializedString;
+    short[][] deserializedShorts;
+    short[][] deserializedHalfs;
 
     try (var deserializer = new NpArrayDeserializer(tempFilePath)) {
       deserializedInts = deserializer.getIntArray("1test");
       deserializedFloats = deserializer.getFloatArray("2test");
       deserializedString = deserializer.getStringArray("3test");
+      deserializedShorts = deserializer.getShortArray("4test");
+      deserializedHalfs = deserializer.getHalfArray("5test");
     }
 
     assertArrayEquals(ints, deserializedInts);
     assertArrayEquals(floats, deserializedFloats);
     assertArrayEquals(strings, deserializedString);
-
+    assertArrayEquals(shorts, deserializedShorts);
+    assertArrayEquals(halfs, deserializedHalfs);
   }
 
   @Test
@@ -65,22 +74,30 @@ public class NpArraysTest {
     int[][] ints = generateArrayInt(2, 2, 5);
     float[][] floats = generateArrayFloat(10, 45, 764.67f);
     String[][] strings = generateArrayString(12, 65, "dr12ЯЯЯ");
+    short[][] shorts = generateArrayShort(15, 75, (short) 634);
+    short[][] halfs = generateArrayShort(50, 50, (short) -224);
     strings[1][1] = "привет!!!!";
 
     try (var serializer = new NpArraySerializer(tempFilePath)) {
       serializer.writeArray("1test", ints);
       serializer.writeArray("2test", floats);
       serializer.writeArray("3test", strings);
+      serializer.writeArray("4test", shorts);
+      serializer.writeHalfArray("5test", halfs);
     }
 
     int[][] deserializedInts;
     float[][] deserializedFloats;
     String[][] deserializedString;
+    short[][] deserializedShorts;
+    short[][] deserializedHalfs;
 
     try (var deserializer = new NpArrayDeserializer(tempFilePath)) {
       deserializedInts = deserializer.getIntArray("1test");
       deserializedFloats = deserializer.getFloatArray("2test");
       deserializedString = deserializer.getStringArray("3test");
+      deserializedShorts = deserializer.getShortArray("4test");
+      deserializedHalfs = deserializer.getHalfArray("5test");
     }
 
     Map<String, Object> matrices;
@@ -88,10 +105,11 @@ public class NpArraysTest {
       matrices = deserializer.deserialize();
     }
 
-    assertArrayEquals(deserializedInts, (int[][])matrices.get("1test"));
-    assertArrayEquals(deserializedFloats, (float[][])matrices.get("2test"));
-    assertArrayEquals(deserializedString, (String[][])matrices.get("3test"));
-
+    assertArrayEquals(deserializedInts, (int[][]) matrices.get("1test"));
+    assertArrayEquals(deserializedFloats, (float[][]) matrices.get("2test"));
+    assertArrayEquals(deserializedString, (String[][]) matrices.get("3test"));
+    assertArrayEquals(deserializedShorts, (short[][]) matrices.get("4test"));
+    assertArrayEquals(deserializedHalfs, (short[][]) matrices.get("5test"));
   }
 
   @Test
@@ -221,6 +239,30 @@ public class NpArraysTest {
   }
 
   @Test
+  public void onlyShorts() throws IOException {
+    short[][] shorts = generateArrayShort(100, 100, (short) 50);
+    try (var serializer = new NpArraySerializer(tempFilePath)) {
+      serializer.writeArray("10_10_test", shorts);
+    }
+
+    try (var deserializer = new NpArrayDeserializer(tempFilePath)) {
+      assertArrayEquals(shorts, deserializer.getShortArray("10_10_test"));
+    }
+  }
+
+  @Test
+  public void onlyHalfs() throws IOException {
+    short[][] shorts = generateArrayShort(100, 100, (short) 200);
+    try (var serializer = new NpArraySerializer(tempFilePath)) {
+      serializer.writeHalfArray("10_10_test", shorts);
+    }
+
+    try (var deserializer = new NpArrayDeserializer(tempFilePath)) {
+      assertArrayEquals(shorts, deserializer.getHalfArray("10_10_test"));
+    }
+  }
+
+  @Test
   public void stringsWithSpecialSymbols() throws IOException {
     String[][] strings = generateArrayString(100, 100, "test");
     strings[0][0] += "\ntest";
@@ -285,19 +327,25 @@ public class NpArraysTest {
     int[][] ints2 = generateArrayInt(580_864_151, 1, 10);
     String[][] strings1 = generateArrayString(580_864_151, 1, "test");
     String[][] strings2 = generateArrayString(580_864_151, 2, "another");
+    short[][] shorts = generateArrayShort(580_864_151, 1, (short) 88);
+    short[][] halfs = generateArrayShort(580_864_151, 2, (short) 15);
 
     try (var serializer = new NpArraySerializer(tempFilePath)) {
       serializer.writeArray("looongFloat", floats1);
+      serializer.writeArray("looongHalf", halfs);
       serializer.writeArray("looongInt1", ints1);
       serializer.writeArray("looongInt2", ints2);
+      serializer.writeArray("looongShorts", shorts);
       serializer.writeArray("looongString1", strings1);
       serializer.writeArray("looongString2", strings2);
     }
 
     try (var deserializer = new NpArrayDeserializer(tempFilePath)) {
       assertArrayEquals(floats1, deserializer.getFloatArray("looongFloat"));
+      assertArrayEquals(halfs, deserializer.getHalfArray("looongHalf"));
       assertArrayEquals(ints1, deserializer.getIntArray("looongInt1"));
       assertArrayEquals(ints2, deserializer.getIntArray("looongInt2"));
+      assertArrayEquals(shorts, deserializer.getShortArray("looongShorts"));
       assertArrayEquals(strings1, deserializer.getStringArray("looongString1"));
       assertArrayEquals(strings2, deserializer.getStringArray("looongString2"));
     }
@@ -325,6 +373,16 @@ public class NpArraysTest {
 
   private String[][] generateArrayString(int column, int row, String elem) {
     String[][] result = new String[row][column];
+    for (int i = 0; i < column; i++) {
+      for (int j = 0; j < row; j++) {
+        result[j][i] = elem;
+      }
+    }
+    return result;
+  }
+
+  private short[][] generateArrayShort(int column, int row, short elem) {
+    short[][] result = new short[row][column];
     for (int i = 0; i < column; i++) {
       for (int j = 0; j < row; j++) {
         result[j][i] = elem;

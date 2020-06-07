@@ -32,6 +32,15 @@ public class GenerateFileTest {
     ints2[0][0] = 455545;
     ints2[1][0] = -34444343;
 
+    short[][] shorts1 = new short[2][1];
+    shorts1[0][0] = 3433;
+    shorts1[1][0] = -2222;
+
+    short[][] halfs1 = new short[1][3];
+    halfs1[0][0] = 15360;
+    halfs1[0][1] = -10512;
+    halfs1[0][2] = 31744;
+
     String[][] strings1 = new String[2][1];
     strings1[0][0] = "asdcs";
     strings1[1][0] = "апапа";
@@ -51,12 +60,13 @@ public class GenerateFileTest {
     try (var serializer = new NpArraySerializer(Paths.get(args[0]))) {
       serializer.writeArray("byte_string2", strings1);
       serializer.writeArray("fffff1", floats1);
+      serializer.writeHalfArray("h", halfs1);
       serializer.writeArray("iiiii1", ints1);
+      serializer.writeArray("s", shorts1);
       serializer.writeArray("байт_стринга1", strings2);
       serializer.writeArray("строчечка3", strings3);
       serializer.writeArray("флоат!", floats2);
       serializer.writeArray("整数", ints2);
     }
-
   }
 }

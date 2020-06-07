@@ -13,12 +13,14 @@ import java.util.Map;
 
 import static ru.hh.search.nparray.arrays.FloatArray.FLOAT_SIZE;
 import static ru.hh.search.nparray.arrays.IntArray.INT_SIZE;
+import static ru.hh.search.nparray.arrays.ShortArray.SHORT_SIZE;
 
 public class NpArrayDeserializer implements AutoCloseable {
 
   private static final int BUFFER_SIZE = 8 * 1024 * 1024;
   private static final int MAX_ROW_BUFFER_ELEMENTS = 1024;
 
+  private static final VarHandle shortView = ByteArrayViews.SHORT.getView();
   private static final VarHandle intView = ByteArrayViews.INT.getView();
   private static final VarHandle floatView = ByteArrayViews.FLOAT.getView();
   private static final VarHandle longView = ByteArrayViews.LONG.getView();
@@ -46,8 +48,12 @@ public class NpArrayDeserializer implements AutoCloseable {
     while ((metadata = readMetadata()) != null) {
       if (metadata.getTypeDescriptor() == TypeDescriptor.INTEGER.getValue()) {
         result.put(metadata.getArrayName(), getIntArrayLargeRows(metadata.getRows(), metadata.getColumns()));
+      } else if (metadata.getTypeDescriptor() == TypeDescriptor.INTEGER16.getValue()) {
+        result.put(metadata.getArrayName(), getShortArrayLargeRows(metadata.getRows(), metadata.getColumns()));
       } else if (metadata.getTypeDescriptor() == TypeDescriptor.FLOAT.getValue()) {
         result.put(metadata.getArrayName(), getFloatArrayLargeRows(metadata.getRows(), metadata.getColumns()));
+      } else if (metadata.getTypeDescriptor() == TypeDescriptor.FLOAT16.getValue()) {
+        result.put(metadata.getArrayName(), getShortArrayLargeRows(metadata.getRows(), metadata.getColumns()));
       } else if (metadata.getTypeDescriptor() == TypeDescriptor.STRING.getValue()) {
         result.put(metadata.getArrayName(), getStringArray(metadata.getRows(), metadata.getColumns()));
       } else {
@@ -91,6 +97,55 @@ public class NpArrayDeserializer implements AutoCloseable {
         for (int k = 0; k < limit; k++) {
           data[i][j] = readInt(bytes, offset);
           offset += INT_SIZE;
+          j++;
+        }
+      }
+    }
+    return data;
+  }
+
+  public short[][] getHalfArray(String name) throws IOException {
+    prepareReading(name);
+    var metadata = findTargetArrayMetadata(name, TypeDescriptor.FLOAT16);
+    int rows = metadata.getRows();
+    int columns = metadata.getColumns();
+    return columns <= MAX_ROW_BUFFER_ELEMENTS ? getShortArraySmallRows(rows, columns) : getShortArrayLargeRows(rows, columns);
+  }
+
+  public short[][] getShortArray(String name) throws IOException {
+    prepareReading(name);
+    var metadata = findTargetArrayMetadata(name, TypeDescriptor.INTEGER16);
+    int rows = metadata.getRows();
+    int columns = metadata.getColumns();
+    return columns <= MAX_ROW_BUFFER_ELEMENTS ? getShortArraySmallRows(rows, columns) : getShortArrayLargeRows(rows, columns);
+  }
+
+  private short[][] getShortArraySmallRows(int rows, int columns) throws IOException {
+    int limit = columns * SHORT_SIZE;
+    short[][] data = new short[rows][columns];
+    for (int i = 0; i < rows; i++) {
+      readNBytesOrThrow(bytes, limit);
+      int offset = 0;
+      for (int j = 0; j < columns; j++) {
+        data[i][j] = readShort(bytes, offset);
+        offset += SHORT_SIZE;
+      }
+    }
+    return data;
+  }
+
+  private short[][] getShortArrayLargeRows(int rows, int columns) throws IOException {
+    var data = new short[rows][columns];
+    for (int i = 0; i < rows; i++) {
+      int j = 0;
+      while (j < columns) {
+        int remainingColumns = columns - j;
+        int limit = Math.min(remainingColumns, MAX_ROW_BUFFER_ELEMENTS);
+        readNBytesOrThrow(bytes, limit * SHORT_SIZE);
+        int offset = 0;
+        for (int k = 0; k < limit; k++) {
+          data[i][j] = readShort(bytes, offset);
+          offset += SHORT_SIZE;
           j++;
         }
       }
@@ -243,6 +298,10 @@ public class NpArrayDeserializer implements AutoCloseable {
 
   private int readInt(byte[] bytes, int offset) {
     return (int) intView.get(bytes, offset);
+  }
+
+  private short readShort(byte[] bytes, int offset) {
+    return (short) shortView.get(bytes, offset);
   }
 
   private long readLong() throws IOException {

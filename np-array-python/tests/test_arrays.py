@@ -27,6 +27,14 @@ class TestNPArrays(unittest.TestCase):
         ints2[1][1] = 5
         ints2[1][2] = 6
 
+        shorts = np.zeros((2, 1), dtype='int16')
+        shorts[0][0] = 4543
+        shorts[1][0] = 111
+
+        halfs = np.zeros((2, 1), dtype='float16')
+        halfs[0][0] = 1.0
+        halfs[1][0] = 32.2323
+
         strings1 = np.array([
             ['as\ndcs', '!!!U3gARt7BC9VwlAnxFHQ--'],
             ['апапа', '!-0123456789=ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz'],
@@ -48,7 +56,9 @@ class TestNPArrays(unittest.TestCase):
             'апапа': floats,
             'byte_string1': strings1,
             'byte_string2': strings2,
-            'byte_string3': strings3
+            'byte_string3': strings3,
+            'short': shorts,
+            'half': halfs,
         }
 
         fp, filename = tempfile.mkstemp()
@@ -71,6 +81,8 @@ class TestNPArrays(unittest.TestCase):
         self.assertTrue(np.array_equal(strings1, result['byte_string1']))
         self.assertTrue(np.array_equal(strings2, result['byte_string2']))
         self.assertTrue(np.array_equal(strings3, result['byte_string3']))
+        self.assertTrue(np.array_equal(shorts, result['short']))
+        self.assertTrue(np.array_equal(halfs, result['half']))
 
     def test_ordered_read(self):
         floats = np.zeros((1, 2), dtype='float32')

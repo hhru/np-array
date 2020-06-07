@@ -6,6 +6,7 @@ import java.nio.ByteOrder;
 
 public enum ByteArrayViews {
 
+  SHORT(MethodHandles.byteArrayViewVarHandle(short[].class, ByteOrder.BIG_ENDIAN)),
   INT(MethodHandles.byteArrayViewVarHandle(int[].class, ByteOrder.BIG_ENDIAN)),
   LONG(MethodHandles.byteArrayViewVarHandle(long[].class, ByteOrder.BIG_ENDIAN)),
   FLOAT(MethodHandles.byteArrayViewVarHandle(float[].class, ByteOrder.BIG_ENDIAN));

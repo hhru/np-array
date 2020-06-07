@@ -12,7 +12,9 @@ public abstract class Serializer<T extends AbstractArray> {
   private static final VarHandle intView = ByteArrayViews.INT.getView();
   private static final VarHandle floatView = ByteArrayViews.FLOAT.getView();
   private static final VarHandle longView = ByteArrayViews.LONG.getView();
+  private static final VarHandle shortView = ByteArrayViews.SHORT.getView();
 
+  private final byte[] bytes2 = new byte[2];
   private final byte[] bytes4 = new byte[4];
   private final byte[] bytes8 = new byte[8];
 
@@ -59,4 +61,8 @@ public abstract class Serializer<T extends AbstractArray> {
     out.write(bytes, 0, length);
   }
 
+  protected void writeShort(short v) throws IOException {
+    shortView.set(bytes2, 0, v);
+    out.write(bytes2);
+  }
 }
