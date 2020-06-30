@@ -2,10 +2,7 @@ import numpy as np
 
 from collections import namedtuple
 from enum import IntEnum
-from version import version
 
-
-__version__ = version
 
 VERSION = 'U20PJBYW'
 SUPPORTED_VERSIONS = {VERSION}
