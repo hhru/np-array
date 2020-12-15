@@ -6,13 +6,15 @@ class Metadata {
   private final int rows;
   private final int columns;
   private final long dataSize;
+  private final long dataOffset;
 
-  Metadata(int typeDescriptorValue, String arrayName, int rows, int columns, long dataSize) {
+  Metadata(int typeDescriptorValue, String arrayName, int rows, int columns, long dataSize, long dataOffset) {
     this.typeDescriptorValue = typeDescriptorValue;
     this.arrayName = arrayName;
     this.rows = rows;
     this.columns = columns;
     this.dataSize = dataSize;
+    this.dataOffset = dataOffset;
   }
 
   int getTypeDescriptor() {
@@ -35,4 +37,7 @@ class Metadata {
     return dataSize;
   }
 
+  public long getDataOffset() {
+    return dataOffset;
+  }
 }

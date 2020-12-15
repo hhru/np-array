@@ -1,6 +1,7 @@
 package ru.hh.search.nparray;
 
 import ru.hh.search.nparray.util.ByteArrayViews;
+import ru.hh.search.nparray.util.CountingInputStream;
 
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
@@ -8,8 +9,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.VarHandle;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static ru.hh.search.nparray.arrays.FloatArray.FLOAT_SIZE;
 import static ru.hh.search.nparray.arrays.IntArray.INT_SIZE;
@@ -25,7 +29,7 @@ public class NpArrayDeserializer implements AutoCloseable {
   private static final VarHandle floatView = ByteArrayViews.FLOAT.getView();
   private static final VarHandle longView = ByteArrayViews.LONG.getView();
 
-  private final InputStream in;
+  private final CountingInputStream in;
   private String lastUsedName;
   private String version;
 
@@ -38,7 +42,7 @@ public class NpArrayDeserializer implements AutoCloseable {
   }
 
   public NpArrayDeserializer(InputStream in) {
-    this.in = new BufferedInputStream(in, BUFFER_SIZE);
+    this.in = new CountingInputStream(new BufferedInputStream(in, BUFFER_SIZE));
   }
 
   public Map<String, Object> deserialize() throws IOException {
@@ -46,29 +50,33 @@ public class NpArrayDeserializer implements AutoCloseable {
     Map<String, Object> result = new HashMap<>();
     Metadata metadata;
     while ((metadata = readMetadata()) != null) {
-      if (metadata.getTypeDescriptor() == TypeDescriptor.INTEGER.getValue()) {
-        result.put(metadata.getArrayName(), getIntArrayLargeRows(metadata.getRows(), metadata.getColumns()));
-      } else if (metadata.getTypeDescriptor() == TypeDescriptor.INTEGER16.getValue()) {
-        result.put(metadata.getArrayName(), getShortArrayLargeRows(metadata.getRows(), metadata.getColumns()));
-      } else if (metadata.getTypeDescriptor() == TypeDescriptor.FLOAT.getValue()) {
-        result.put(metadata.getArrayName(), getFloatArrayLargeRows(metadata.getRows(), metadata.getColumns()));
-      } else if (metadata.getTypeDescriptor() == TypeDescriptor.FLOAT16.getValue()) {
-        result.put(metadata.getArrayName(), getShortArrayLargeRows(metadata.getRows(), metadata.getColumns()));
-      } else if (metadata.getTypeDescriptor() == TypeDescriptor.STRING.getValue()) {
-        result.put(metadata.getArrayName(), getStringArray(metadata.getRows(), metadata.getColumns()));
+      result.put(metadata.getArrayName(), readData(metadata));
+    }
+    return result;
+  }
+
+  public Map<String, MetaArray> deserializeMetadata(String... array) throws IOException {
+    readVersionIfNecessary();
+    Map<String, MetaArray> result = new HashMap<>();
+    Set<String> arrays = new HashSet<>(Arrays.asList(array));
+    Metadata metadata;
+    while ((metadata = readMetadata()) != null) {
+      Object data = null;
+      if (arrays.contains(metadata.getArrayName())) {
+        data = readData(metadata);
       } else {
-        throw new IllegalStateException("Incorrect type descriptor: " + metadata.getTypeDescriptor());
+        skipNBytesOrThrow(metadata.getDataSize());
       }
+
+      result.put(metadata.getArrayName(),
+        new MetaArray(metadata.getRows(), metadata.getColumns(), metadata.getDataSize(), metadata.getDataOffset(), data));
     }
     return result;
   }
 
   public int[][] getIntArray(String name) throws IOException {
     prepareReading(name);
-    var metadata = findTargetArrayMetadata(name, TypeDescriptor.INTEGER);
-    int rows = metadata.getRows();
-    int columns = metadata.getColumns();
-    return columns <= MAX_ROW_BUFFER_ELEMENTS ? getIntArraySmallRows(rows, columns) : getIntArrayLargeRows(rows, columns);
+    return (int[][]) readData(findTargetArrayMetadata(name, TypeDescriptor.INTEGER));
   }
 
   private int[][] getIntArraySmallRows(int rows, int columns) throws IOException {
@@ -106,18 +114,12 @@ public class NpArrayDeserializer implements AutoCloseable {
 
   public short[][] getHalfArray(String name) throws IOException {
     prepareReading(name);
-    var metadata = findTargetArrayMetadata(name, TypeDescriptor.FLOAT16);
-    int rows = metadata.getRows();
-    int columns = metadata.getColumns();
-    return columns <= MAX_ROW_BUFFER_ELEMENTS ? getShortArraySmallRows(rows, columns) : getShortArrayLargeRows(rows, columns);
+    return (short[][]) readData(findTargetArrayMetadata(name, TypeDescriptor.FLOAT16));
   }
 
   public short[][] getShortArray(String name) throws IOException {
     prepareReading(name);
-    var metadata = findTargetArrayMetadata(name, TypeDescriptor.INTEGER16);
-    int rows = metadata.getRows();
-    int columns = metadata.getColumns();
-    return columns <= MAX_ROW_BUFFER_ELEMENTS ? getShortArraySmallRows(rows, columns) : getShortArrayLargeRows(rows, columns);
+    return (short[][]) readData(findTargetArrayMetadata(name, TypeDescriptor.INTEGER16));
   }
 
   private short[][] getShortArraySmallRows(int rows, int columns) throws IOException {
@@ -155,10 +157,7 @@ public class NpArrayDeserializer implements AutoCloseable {
 
   public float[][] getFloatArray(String name) throws IOException {
     prepareReading(name);
-    var metadata = findTargetArrayMetadata(name, TypeDescriptor.FLOAT);
-    int rows = metadata.getRows();
-    int columns = metadata.getColumns();
-    return columns <= MAX_ROW_BUFFER_ELEMENTS ? getFloatArraySmallRows(rows, columns) : getFloatArrayLargeRows(rows, columns);
+    return (float[][]) readData(findTargetArrayMetadata(name, TypeDescriptor.FLOAT));
   }
 
   private float[][] getFloatArraySmallRows(int rows, int columns) throws IOException {
@@ -196,10 +195,7 @@ public class NpArrayDeserializer implements AutoCloseable {
 
   public String[][] getStringArray(String name) throws IOException {
     prepareReading(name);
-    var metadata = findTargetArrayMetadata(name, TypeDescriptor.STRING);
-    int rows = metadata.getRows();
-    int columns = metadata.getColumns();
-    return getStringArray(rows, columns);
+    return (String[][]) readData(findTargetArrayMetadata(name, TypeDescriptor.STRING));
   }
 
   private String[][] getStringArray(int rows, int columns) throws IOException {
@@ -267,7 +263,27 @@ public class NpArrayDeserializer implements AutoCloseable {
     int rows = readInt();
     int columns = readInt();
     long dataSize = readLong();
-    return new Metadata(typeDescriptorValue, arrayName, rows, columns, dataSize);
+    long dataOffset = in.getCount();
+
+    return new Metadata(typeDescriptorValue, arrayName, rows, columns, dataSize, dataOffset);
+  }
+
+  private Object readData(Metadata metadata) throws IOException {
+    int type = metadata.getTypeDescriptor();
+    int rows = metadata.getRows();
+    int columns = metadata.getColumns();
+
+    if (type == TypeDescriptor.INTEGER.getValue()) {
+      return columns <= MAX_ROW_BUFFER_ELEMENTS ? getIntArraySmallRows(rows, columns) : getIntArrayLargeRows(rows, columns);
+    } else if (type == TypeDescriptor.INTEGER16.getValue() || type == TypeDescriptor.FLOAT16.getValue()) {
+      return columns <= MAX_ROW_BUFFER_ELEMENTS ? getShortArraySmallRows(rows, columns) : getShortArrayLargeRows(rows, columns);
+    } else if (type == TypeDescriptor.FLOAT.getValue()) {
+      return columns <= MAX_ROW_BUFFER_ELEMENTS ? getFloatArraySmallRows(rows, columns) : getFloatArrayLargeRows(rows, columns);
+    } else if (type == TypeDescriptor.STRING.getValue()) {
+      return getStringArray(rows, columns);
+    } else {
+      throw new IllegalStateException("Incorrect type descriptor: " + type);
+    }
   }
 
   private void readFullOrThrow(byte[] buff) throws IOException {

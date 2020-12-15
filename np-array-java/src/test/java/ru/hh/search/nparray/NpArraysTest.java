@@ -1,6 +1,10 @@
 package ru.hh.search.nparray;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static ru.hh.search.nparray.util.ByteArrayViews.FLOAT;
+import static ru.hh.search.nparray.util.ByteArrayViews.SHORT;
 
 import org.junit.After;
 import org.junit.Ignore;
@@ -31,7 +35,6 @@ public class NpArraysTest {
 
   @Test
   public void testSerialization() throws IOException {
-
     int[][] ints = generateArrayInt(2, 2, 5);
     float[][] floats = generateArrayFloat(10, 45, 764.67f);
     String[][] strings = generateArrayString(12, 65, "dr12ЯЯЯ");
@@ -70,7 +73,6 @@ public class NpArraysTest {
 
   @Test
   public void testDeserializeAll() throws IOException {
-
     int[][] ints = generateArrayInt(2, 2, 5);
     float[][] floats = generateArrayFloat(10, 45, 764.67f);
     String[][] strings = generateArrayString(12, 65, "dr12ЯЯЯ");
@@ -113,8 +115,52 @@ public class NpArraysTest {
   }
 
   @Test
-  public void testSerializationOneByOne() throws IOException {
+  public void testDeserializeMetadata() throws IOException {
+    int[][] ints = generateArrayInt(2, 2, 5);
+    float[][] floats = generateArrayFloat(10, 45, 764.67f);
+    String[][] strings = generateArrayString(12, 65, "dr12ЯЯЯ");
+    short[][] shorts = generateArrayShort(15, 75, (short) 634);
+    short[][] halfs = generateArrayShort(1, 1, (short) -224);
+    strings[1][1] = "привет!!!!";
 
+    try (var serializer = new NpArraySerializer(tempFilePath)) {
+      serializer.writeArray("1test", ints);
+      serializer.writeArray("2test", floats);
+      serializer.writeArray("3test", strings);
+      serializer.writeArray("4test", shorts);
+      serializer.writeHalfArray("5test", halfs);
+    }
+
+    Map<String, MetaArray> meta;
+
+    try (var deserializer = new NpArrayDeserializer(tempFilePath)) {
+      meta = deserializer.deserializeMetadata("2test", "5test");
+    }
+
+    Map<String, Object> matrices;
+    try (var deserializer = new NpArrayDeserializer(tempFilePath)) {
+      matrices = deserializer.deserialize();
+    }
+
+    assertEquals(37, meta.get("1test").getOffset());
+    assertEquals(82, meta.get("2test").getOffset());
+    assertEquals(1911, meta.get("3test").getOffset());
+    assertEquals(12866, meta.get("4test").getOffset());
+    assertEquals(15145, meta.get("5test").getOffset());
+
+    byte[] bytes = Files.readAllBytes(tempFilePath);
+    assertEquals(765.67f, (float) FLOAT.getView().get(bytes, (int) meta.get("2test").getOffset()), 0.00001f);
+    assertEquals((short) -224, (short) SHORT.getView().get(bytes, (int) meta.get("5test").getOffset()));
+
+    assertNull(meta.get("1test").getData());
+    assertArrayEquals((float[][]) meta.get("2test").getData(), (float[][]) matrices.get("2test"));
+    assertNull(meta.get("3test").getData());
+    assertNull(meta.get("4test").getData());
+    assertArrayEquals((short[][]) meta.get("5test").getData(), (short[][]) matrices.get("5test"));
+  }
+
+  @Test
+  public void testSerializationOneByOne() throws IOException {
     int[][] ints = generateArrayInt(2, 2, 5);
     float[][] floats = generateArrayFloat(10, 45, 764.67f);
     String[][] strings = generateArrayString(12, 65, "dr12ЯЯЯ");
@@ -139,12 +185,10 @@ public class NpArraysTest {
     assertArrayEquals(ints, deserializedInts);
     assertArrayEquals(floats, deserializedFloats);
     assertArrayEquals(strings, deserializedString);
-
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testIncorrectOrderSerialize() throws IOException {
-
     int[][] ints = generateArrayInt(2, 2, 5);
     float[][] floats = generateArrayFloat(10, 45, (float) Math.PI);
 
@@ -152,13 +196,10 @@ public class NpArraysTest {
       serializer.writeArray("2test", floats);
       serializer.writeArray("1test", ints);
     }
-
   }
-
 
   @Test(expected = IllegalArgumentException.class)
   public void testIncorrectOrderAccess() throws IOException {
-
     int[][] ints = generateArrayInt(2, 2, 5);
     float[][] floats = generateArrayFloat(10, 45, (float) Math.PI);
 
@@ -175,7 +216,6 @@ public class NpArraysTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testGetNonexistentArray() throws IOException {
-
     int[][] ints = generateArrayInt(2, 2, 5);
     float[][] floats = generateArrayFloat(10, 45, (float) Math.PI);
 
@@ -187,7 +227,6 @@ public class NpArraysTest {
     try (var deserializer = new NpArrayDeserializer(tempFilePath)) {
       deserializer.getFloatArray("4test");
     }
-
   }
 
   @Test
