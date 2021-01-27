@@ -3,7 +3,8 @@ from typing import Any
 
 import numpy as np
 
-from nparray import VERSION, Metadata, TypeDescriptor, STRING_TYPE, NUMBER_SIZE, SHORT_SIZE
+from nparray import (BYTE_ORDER_SELECT_VERSION, BIG_ENDIAN, LITTLE_ENDIAN, Metadata, TypeDescriptor,
+                     STRING_TYPE, NUMBER_SIZE, SHORT_SIZE)
 
 MAX_ARRAY_LEN = 2 ** 31 - 9
 
@@ -13,10 +14,15 @@ def to_bytes(data: str):
 
 
 class Serializer:
-    def __init__(self, filename: str):
+    def __init__(self, filename: str, byte_order=BIG_ENDIAN):
         self.filename = filename
         self.version = None
         self.last_used_name = None
+
+        if byte_order not in {BIG_ENDIAN, LITTLE_ENDIAN}:
+            raise ValueError('Invalid byte order')
+
+        self.byte_order = byte_order
 
     def __enter__(self):
         self.fp = open(self.filename, 'wb')
@@ -48,8 +54,9 @@ class Serializer:
     def _write_version_if_necessary(self) -> None:
         if self.version is not None:
             return
-        self.version = VERSION
+        self.version = BYTE_ORDER_SELECT_VERSION
         self.fp.write(to_bytes(self.version))
+        self.fp.write(to_bytes(self.byte_order))
 
     def _check_name(self, name: str) -> None:
         if self.last_used_name is not None and name < self.last_used_name:
@@ -77,13 +84,13 @@ class Serializer:
         self._write_metadata(metadata)
 
         if type_descriptor == TypeDescriptor.INTEGER:
-            arr.astype('>i4').tofile(self.fp)
+            arr.astype('{}i4'.format(self.byte_order), copy=False).tofile(self.fp)
         elif type_descriptor == TypeDescriptor.INTEGER16:
-            arr.astype('>i2').tofile(self.fp)
+            arr.astype('{}i2'.format(self.byte_order), copy=False).tofile(self.fp)
         elif type_descriptor == TypeDescriptor.FLOAT:
-            arr.astype('>f4').tofile(self.fp)
+            arr.astype('{}f4'.format(self.byte_order), copy=False).tofile(self.fp)
         elif type_descriptor == TypeDescriptor.FLOAT16:
-            arr.astype('>f2').tofile(self.fp)
+            arr.astype('{}f2'.format(self.byte_order), copy=False).tofile(self.fp)
         elif type_descriptor == TypeDescriptor.STRING:
             self._write_string_array(arr.astype(STRING_TYPE))
         else:

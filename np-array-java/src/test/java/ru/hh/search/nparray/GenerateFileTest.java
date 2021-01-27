@@ -1,6 +1,7 @@
 package ru.hh.search.nparray;
 
 import java.io.IOException;
+import java.nio.ByteOrder;
 import java.nio.file.Paths;
 
 public class GenerateFileTest {
@@ -57,7 +58,19 @@ public class GenerateFileTest {
     strings3[0][0] = "asdcs";
     strings3[0][1] = "!!!U3gARt7BC9VwlAnxFHQ--";
 
-    try (var serializer = new NpArraySerializer(Paths.get(args[0]))) {
+    try (var serializer = new NpArraySerializer(Paths.get(args[0]), ByteOrder.BIG_ENDIAN)) {
+      serializer.writeArray("byte_string2", strings1);
+      serializer.writeArray("fffff1", floats1);
+      serializer.writeHalfArray("h", halfs1);
+      serializer.writeArray("iiiii1", ints1);
+      serializer.writeArray("s", shorts1);
+      serializer.writeArray("байт_стринга1", strings2);
+      serializer.writeArray("строчечка3", strings3);
+      serializer.writeArray("флоат!", floats2);
+      serializer.writeArray("整数", ints2);
+    }
+
+    try (var serializer = new NpArraySerializer(Paths.get(args[1]), ByteOrder.LITTLE_ENDIAN)) {
       serializer.writeArray("byte_string2", strings1);
       serializer.writeArray("fffff1", floats1);
       serializer.writeHalfArray("h", halfs1);

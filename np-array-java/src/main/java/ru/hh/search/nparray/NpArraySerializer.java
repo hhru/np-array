@@ -11,29 +11,48 @@ import ru.hh.search.nparray.serializers.IntSerializer;
 import ru.hh.search.nparray.serializers.Serializer;
 import ru.hh.search.nparray.serializers.ShortSerializer;
 import ru.hh.search.nparray.serializers.StringSerializer;
+import ru.hh.search.nparray.util.ByteArrayViews;
 
 import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
+import static ru.hh.search.nparray.NpArrays.BYTE_ORDER_TO_STRING;
+
 public class NpArraySerializer implements AutoCloseable {
 
   private static final int BUFFER_SIZE = 100 * 1024 * 1024;
-  private OutputStream out;
+  private final OutputStream out;
+  private final ByteOrder byteOrder;
   private String version;
   private String lastUsedName;
   private Map<Class<? extends AbstractArray>, Serializer> serializers = new HashMap<>();
 
   public NpArraySerializer(Path path) throws IOException {
-    this(new FileOutputStream(path.toString()));
+    this(new FileOutputStream(path.toString()), ByteOrder.BIG_ENDIAN);
+  }
+
+  public NpArraySerializer(Path path, ByteOrder byteOrder) throws IOException {
+    this(new FileOutputStream(path.toString()), byteOrder);
   }
 
   public NpArraySerializer(OutputStream out) {
+    this(out, ByteOrder.BIG_ENDIAN);
+  }
+
+  public NpArraySerializer(OutputStream out, ByteOrder byteOrder) {
     this.out = new BufferedOutputStream(out, BUFFER_SIZE);
+    this.byteOrder = byteOrder;
+
+    if (byteOrder == null) {
+      throw new IllegalArgumentException("Invalid byte order");
+    }
   }
 
   public void writeArray(String name, int[][] array) throws IOException {
@@ -58,13 +77,13 @@ public class NpArraySerializer implements AutoCloseable {
 
   private void writeArray(AbstractArray array) throws IOException {
     prepareWriting(array.getName());
-    serializers.computeIfAbsent(array.getClass(), type -> SerializerFactory.create(type, out)).serialize(array);
+    serializers.computeIfAbsent(array.getClass(), type -> SerializerFactory.create(type, out, byteOrder)).serialize(array);
     lastUsedName = array.getName();
   }
 
   private void prepareWriting(String name) throws IOException {
     checkName(name);
-    writeVersionIfNecessary();
+    writeHeaderIfNecessary();
   }
 
   private void checkName(String name) {
@@ -73,12 +92,13 @@ public class NpArraySerializer implements AutoCloseable {
     }
   }
 
-  private void writeVersionIfNecessary() throws IOException {
+  private void writeHeaderIfNecessary() throws IOException {
     if (version != null) {
       return;
     }
-    version = NpArrays.ACTUAL_VERSION;
+    version = NpArrays.BYTE_ORDER_SELECT_VERSION;
     out.write(version.getBytes());
+    out.write(BYTE_ORDER_TO_STRING.get(byteOrder).getBytes());
   }
 
   @Override
@@ -94,16 +114,19 @@ public class NpArraySerializer implements AutoCloseable {
 
     }
 
-    public static <T extends AbstractArray, R extends Serializer<T>> R create(Class<T> clazz, OutputStream out) {
+    public static <T extends AbstractArray, R extends Serializer<T>> R create(Class<T> clazz, OutputStream out, ByteOrder byteOrder) {
       Serializer<?> serializer;
       if (clazz == IntArray.class) {
-        serializer = new IntSerializer(out);
+        VarHandle view = ByteOrder.BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.INT_BE.getView() : ByteArrayViews.INT_LE.getView();
+        serializer = new IntSerializer(out, view);
       } else if (clazz == FloatArray.class) {
-        serializer = new FloatSerializer(out);
+        VarHandle view = ByteOrder.BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.FLOAT_BE.getView() : ByteArrayViews.FLOAT_LE.getView();
+        serializer = new FloatSerializer(out, view);
       } else if (clazz == StringArray.class) {
         serializer = new StringSerializer(out);
       } else if (clazz == ShortArray.class || clazz == HalfArray.class) {
-        serializer = new ShortSerializer(out);
+        VarHandle view = ByteOrder.BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.SHORT_BE.getView() : ByteArrayViews.SHORT_LE.getView();
+        serializer = new ShortSerializer(out, view);
       } else {
         throw new IllegalArgumentException(String.format("unknown type: %s", clazz));
       }

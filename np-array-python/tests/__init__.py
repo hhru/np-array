@@ -3,6 +3,7 @@ import sys
 
 import numpy as np
 
+from nparray import BIG_ENDIAN, LITTLE_ENDIAN
 from nparray.serializer import Serializer
 
 if __name__ == '__main__':
@@ -70,5 +71,8 @@ if __name__ == '__main__':
     data['s'] = shorts
     data['h'] = halfs
 
-    with Serializer(sys.argv[1]) as serializer:
+    with Serializer(sys.argv[1], byte_order=BIG_ENDIAN) as serializer:
+        serializer.serialize(**data)
+
+    with Serializer(sys.argv[2], byte_order=LITTLE_ENDIAN) as serializer:
         serializer.serialize(**data)

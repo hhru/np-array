@@ -8,7 +8,7 @@ import java.io.OutputStream;
 public class StringSerializer extends Serializer<StringArray> {
 
   public StringSerializer(OutputStream out) {
-    super(out);
+    super(out, null);
   }
 
   @Override

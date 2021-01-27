@@ -8,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -15,6 +16,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import static ru.hh.search.nparray.NpArrays.BYTE_ORDER_SELECT_VERSION;
+import static ru.hh.search.nparray.NpArrays.STRING_TO_BYTE_ORDER;
 import static ru.hh.search.nparray.arrays.FloatArray.FLOAT_SIZE;
 import static ru.hh.search.nparray.arrays.IntArray.INT_SIZE;
 import static ru.hh.search.nparray.arrays.ShortArray.SHORT_SIZE;
@@ -24,14 +27,10 @@ public class NpArrayDeserializer implements AutoCloseable {
   private static final int BUFFER_SIZE = 8 * 1024 * 1024;
   private static final int MAX_ROW_BUFFER_ELEMENTS = 1024;
 
-  private static final VarHandle shortView = ByteArrayViews.SHORT.getView();
-  private static final VarHandle intView = ByteArrayViews.INT.getView();
-  private static final VarHandle floatView = ByteArrayViews.FLOAT.getView();
-  private static final VarHandle longView = ByteArrayViews.LONG.getView();
-
   private final CountingInputStream in;
   private String lastUsedName;
   private String version;
+  private ByteOrder byteOrder = ByteOrder.BIG_ENDIAN;
 
   private final byte[] bytes4 = new byte[4];
   private final byte[] bytes8 = new byte[8];
@@ -46,7 +45,7 @@ public class NpArrayDeserializer implements AutoCloseable {
   }
 
   public Map<String, Object> deserialize() throws IOException {
-    readVersionIfNecessary();
+    readHeaderIfNecessary();
     Map<String, Object> result = new HashMap<>();
     Metadata metadata;
     while ((metadata = readMetadata()) != null) {
@@ -56,9 +55,14 @@ public class NpArrayDeserializer implements AutoCloseable {
   }
 
   public Map<String, MetaArray> deserializeMetadata(String... array) throws IOException {
-    readVersionIfNecessary();
+    readHeaderIfNecessary();
     Map<String, MetaArray> result = new HashMap<>();
     Set<String> arrays = new HashSet<>(Arrays.asList(array));
+
+    if (arrays.isEmpty()) {
+      return result;
+    }
+
     Metadata metadata;
     while ((metadata = readMetadata()) != null) {
       Object data = null;
@@ -74,26 +78,30 @@ public class NpArrayDeserializer implements AutoCloseable {
     return result;
   }
 
+  public ByteOrder getByteOrder() {
+    return byteOrder;
+  }
+
   public int[][] getIntArray(String name) throws IOException {
     prepareReading(name);
     return (int[][]) readData(findTargetArrayMetadata(name, TypeDescriptor.INTEGER));
   }
 
-  private int[][] getIntArraySmallRows(int rows, int columns) throws IOException {
+  private int[][] getIntArraySmallRows(int rows, int columns, VarHandle view) throws IOException {
     int limit = columns * INT_SIZE;
     int[][] data = new int[rows][columns];
     for (int i = 0; i < rows; i++) {
       readNBytesOrThrow(bytes, limit);
       int offset = 0;
       for (int j = 0; j < columns; j++) {
-        data[i][j] = readInt(bytes, offset);
+        data[i][j] = (int) view.get(bytes, offset);
         offset += INT_SIZE;
       }
     }
     return data;
   }
 
-  private int[][] getIntArrayLargeRows(int rows, int columns) throws IOException {
+  private int[][] getIntArrayLargeRows(int rows, int columns, VarHandle view) throws IOException {
     var data = new int[rows][columns];
     for (int i = 0; i < rows; i++) {
       int j = 0;
@@ -103,7 +111,7 @@ public class NpArrayDeserializer implements AutoCloseable {
         readNBytesOrThrow(bytes, limit * INT_SIZE);
         int offset = 0;
         for (int k = 0; k < limit; k++) {
-          data[i][j] = readInt(bytes, offset);
+          data[i][j] = (int) view.get(bytes, offset);
           offset += INT_SIZE;
           j++;
         }
@@ -122,21 +130,21 @@ public class NpArrayDeserializer implements AutoCloseable {
     return (short[][]) readData(findTargetArrayMetadata(name, TypeDescriptor.INTEGER16));
   }
 
-  private short[][] getShortArraySmallRows(int rows, int columns) throws IOException {
+  private short[][] getShortArraySmallRows(int rows, int columns, VarHandle view) throws IOException {
     int limit = columns * SHORT_SIZE;
     short[][] data = new short[rows][columns];
     for (int i = 0; i < rows; i++) {
       readNBytesOrThrow(bytes, limit);
       int offset = 0;
       for (int j = 0; j < columns; j++) {
-        data[i][j] = readShort(bytes, offset);
+        data[i][j] = (short) view.get(bytes, offset);
         offset += SHORT_SIZE;
       }
     }
     return data;
   }
 
-  private short[][] getShortArrayLargeRows(int rows, int columns) throws IOException {
+  private short[][] getShortArrayLargeRows(int rows, int columns, VarHandle view) throws IOException {
     var data = new short[rows][columns];
     for (int i = 0; i < rows; i++) {
       int j = 0;
@@ -146,7 +154,7 @@ public class NpArrayDeserializer implements AutoCloseable {
         readNBytesOrThrow(bytes, limit * SHORT_SIZE);
         int offset = 0;
         for (int k = 0; k < limit; k++) {
-          data[i][j] = readShort(bytes, offset);
+          data[i][j] = (short) view.get(bytes, offset);
           offset += SHORT_SIZE;
           j++;
         }
@@ -160,21 +168,21 @@ public class NpArrayDeserializer implements AutoCloseable {
     return (float[][]) readData(findTargetArrayMetadata(name, TypeDescriptor.FLOAT));
   }
 
-  private float[][] getFloatArraySmallRows(int rows, int columns) throws IOException {
+  private float[][] getFloatArraySmallRows(int rows, int columns, VarHandle view) throws IOException {
     int limit = columns * FLOAT_SIZE;
     float[][] data = new float[rows][columns];
     for (int i = 0; i < rows; i++) {
       readNBytesOrThrow(bytes, limit);
       int offset = 0;
       for (int j = 0; j < columns; j++) {
-        data[i][j] = readFloat(bytes, offset);
+        data[i][j] = (float) view.get(bytes, offset);
         offset += FLOAT_SIZE;
       }
     }
     return data;
   }
 
-  private float[][] getFloatArrayLargeRows(int rows, int columns) throws IOException {
+  private float[][] getFloatArrayLargeRows(int rows, int columns, VarHandle view) throws IOException {
     float[][] data = new float[rows][columns];
     for (int i = 0; i < rows; i++) {
       int j = 0;
@@ -184,7 +192,7 @@ public class NpArrayDeserializer implements AutoCloseable {
         readNBytesOrThrow(bytes, limit * FLOAT_SIZE);
         int offset = 0;
         for (int k = 0; k < limit; k++) {
-          data[i][j] = readFloat(bytes, offset);
+          data[i][j] = (float) view.get(bytes, offset);
           offset += FLOAT_SIZE;
           j++;
         }
@@ -210,7 +218,7 @@ public class NpArrayDeserializer implements AutoCloseable {
 
   private void prepareReading(String name) throws IOException {
     checkName(name);
-    readVersionIfNecessary();
+    readHeaderIfNecessary();
   }
 
   private void checkName(String name) {
@@ -219,13 +227,20 @@ public class NpArrayDeserializer implements AutoCloseable {
     }
   }
 
-  private void readVersionIfNecessary() throws IOException {
+  private void readHeaderIfNecessary() throws IOException {
     if (version != null) {
       return;
     }
     version = readString(8);
     if (!NpArrays.SUPPORTED_VERSIONS.contains(version)) {
       throw new RuntimeException(String.format("Version %s isn't supported", version));
+    }
+    if (BYTE_ORDER_SELECT_VERSION.equals(version)) {
+      String order = readString(1);
+      byteOrder = STRING_TO_BYTE_ORDER.get(order);
+      if (byteOrder == null) {
+        throw new RuntimeException(String.format("Invalid byte order %s", order));
+      }
     }
   }
 
@@ -258,11 +273,11 @@ public class NpArrayDeserializer implements AutoCloseable {
       }
       throw new IOException(String.format("read only %s bytes, expected %s", readedBytes, INT_SIZE));
     }
-    int typeDescriptorValue = readInt(typeBuffer, 0);
+    int typeDescriptorValue = readIntBE(typeBuffer);
     String arrayName = readString();
-    int rows = readInt();
-    int columns = readInt();
-    long dataSize = readLong();
+    int rows = readIntBE();
+    int columns = readIntBE();
+    long dataSize = readLongBE();
     long dataOffset = in.getCount();
 
     return new Metadata(typeDescriptorValue, arrayName, rows, columns, dataSize, dataOffset);
@@ -274,11 +289,14 @@ public class NpArrayDeserializer implements AutoCloseable {
     int columns = metadata.getColumns();
 
     if (type == TypeDescriptor.INTEGER.getValue()) {
-      return columns <= MAX_ROW_BUFFER_ELEMENTS ? getIntArraySmallRows(rows, columns) : getIntArrayLargeRows(rows, columns);
+      VarHandle view = ByteOrder.BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.INT_BE.getView() : ByteArrayViews.INT_LE.getView();
+      return columns <= MAX_ROW_BUFFER_ELEMENTS ? getIntArraySmallRows(rows, columns, view) : getIntArrayLargeRows(rows, columns, view);
     } else if (type == TypeDescriptor.INTEGER16.getValue() || type == TypeDescriptor.FLOAT16.getValue()) {
-      return columns <= MAX_ROW_BUFFER_ELEMENTS ? getShortArraySmallRows(rows, columns) : getShortArrayLargeRows(rows, columns);
+      VarHandle view = ByteOrder.BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.SHORT_BE.getView() : ByteArrayViews.SHORT_LE.getView();
+      return columns <= MAX_ROW_BUFFER_ELEMENTS ? getShortArraySmallRows(rows, columns, view) : getShortArrayLargeRows(rows, columns, view);
     } else if (type == TypeDescriptor.FLOAT.getValue()) {
-      return columns <= MAX_ROW_BUFFER_ELEMENTS ? getFloatArraySmallRows(rows, columns) : getFloatArrayLargeRows(rows, columns);
+      VarHandle view = ByteOrder.BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.FLOAT_BE.getView() : ByteArrayViews.FLOAT_LE.getView();
+      return columns <= MAX_ROW_BUFFER_ELEMENTS ? getFloatArraySmallRows(rows, columns, view) : getFloatArrayLargeRows(rows, columns, view);
     } else if (type == TypeDescriptor.STRING.getValue()) {
       return getStringArray(rows, columns);
     } else {
@@ -307,30 +325,22 @@ public class NpArrayDeserializer implements AutoCloseable {
     }
   }
 
-  private int readInt() throws IOException {
+  private int readIntBE() throws IOException {
     readFullOrThrow(bytes4);
-    return readInt(bytes4, 0);
+    return readIntBE(bytes4);
   }
 
-  private int readInt(byte[] bytes, int offset) {
-    return (int) intView.get(bytes, offset);
+  private int readIntBE(byte[] bytes) {
+    return (int) ByteArrayViews.INT_BE.getView().get(bytes, 0);
   }
 
-  private short readShort(byte[] bytes, int offset) {
-    return (short) shortView.get(bytes, offset);
-  }
-
-  private long readLong() throws IOException {
+  private long readLongBE() throws IOException {
     readFullOrThrow(bytes8);
-    return (long) longView.get(bytes8, 0);
-  }
-
-  private float readFloat(byte[] bytes, int offset) {
-    return (float) floatView.get(bytes, offset);
+    return (long) ByteArrayViews.LONG_BE.getView().get(bytes8, 0);
   }
 
   private String readString() throws IOException {
-    int len = readInt();
+    int len = readIntBE();
     return readString(len);
   }
 
