@@ -27,7 +27,7 @@ import static ru.hh.search.nparray.NpArrays.BYTE_ORDER_TO_STRING;
 
 public class NpArraySerializer implements AutoCloseable {
 
-  private static final int BUFFER_SIZE = 100 * 1024 * 1024;
+  private static final int BUFFER_SIZE = 4096;
   private final OutputStream out;
   private final ByteOrder byteOrder;
   private String version;

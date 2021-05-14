@@ -24,7 +24,7 @@ import static ru.hh.search.nparray.arrays.ShortArray.SHORT_SIZE;
 
 public class NpArrayDeserializer implements AutoCloseable {
 
-  private static final int BUFFER_SIZE = 8 * 1024 * 1024;
+  private static final int BUFFER_SIZE = 4096;
   private static final int MAX_ROW_BUFFER_ELEMENTS = 1024;
 
   private final CountingInputStream in;
