@@ -3,7 +3,7 @@ import sys
 
 import numpy as np
 
-from nparray import BIG_ENDIAN, LITTLE_ENDIAN
+from nparray import BIG_ENDIAN, LITTLE_ENDIAN, CompressedIntArray
 from nparray.serializer import Serializer
 
 if __name__ == '__main__':
@@ -62,6 +62,10 @@ if __name__ == '__main__':
 
     data = collections.OrderedDict()
     data['fffff1'] = floats1
+    data['compressed_int_array'] = CompressedIntArray(
+        [np.array([1, 100, 101, 106], copy=True, dtype=np.uint32, order='C'),
+         np.array([999, 1000, 1010, 1060], copy=True, dtype=np.uint32, order='C')]
+    )
     data['флоат!'] = floats2
     data['iiiii1'] = ints1
     data['整数'] = ints2

@@ -1,11 +1,21 @@
 package ru.hh.search.nparray;
 
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.lang.invoke.VarHandle;
+import java.nio.ByteOrder;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+import static ru.hh.search.nparray.NpArrays.BYTE_ORDER_TO_STRING;
 import ru.hh.search.nparray.arrays.AbstractArray;
+import ru.hh.search.nparray.arrays.CompressedIntArray;
 import ru.hh.search.nparray.arrays.FloatArray;
 import ru.hh.search.nparray.arrays.HalfArray;
 import ru.hh.search.nparray.arrays.IntArray;
 import ru.hh.search.nparray.arrays.ShortArray;
 import ru.hh.search.nparray.arrays.StringArray;
+import ru.hh.search.nparray.serializers.CompressedIntArraySerializer;
 import ru.hh.search.nparray.serializers.FloatSerializer;
 import ru.hh.search.nparray.serializers.IntSerializer;
 import ru.hh.search.nparray.serializers.Serializer;
@@ -13,41 +23,28 @@ import ru.hh.search.nparray.serializers.ShortSerializer;
 import ru.hh.search.nparray.serializers.StringSerializer;
 import ru.hh.search.nparray.util.ByteArrayViews;
 
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.lang.invoke.VarHandle;
-import java.nio.ByteOrder;
-import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
-
-import static ru.hh.search.nparray.NpArrays.BYTE_ORDER_TO_STRING;
-
 public class NpArraySerializer implements AutoCloseable {
 
-  private static final int BUFFER_SIZE = 4096;
-  private final OutputStream out;
+  private final RandomAccessFile out;
   private final ByteOrder byteOrder;
   private String version;
   private String lastUsedName;
   private Map<Class<? extends AbstractArray>, Serializer> serializers = new HashMap<>();
 
   public NpArraySerializer(Path path) throws IOException {
-    this(new FileOutputStream(path.toString()), ByteOrder.BIG_ENDIAN);
+    this(new RandomAccessFile(path.toString(), "rw"), ByteOrder.BIG_ENDIAN);
   }
 
   public NpArraySerializer(Path path, ByteOrder byteOrder) throws IOException {
-    this(new FileOutputStream(path.toString()), byteOrder);
+    this(new RandomAccessFile(path.toString(), "rw"), byteOrder);
   }
 
-  public NpArraySerializer(OutputStream out) {
+  public NpArraySerializer(RandomAccessFile out) {
     this(out, ByteOrder.BIG_ENDIAN);
   }
 
-  public NpArraySerializer(OutputStream out, ByteOrder byteOrder) {
-    this.out = new BufferedOutputStream(out, BUFFER_SIZE);
+  public NpArraySerializer(RandomAccessFile out, ByteOrder byteOrder) {
+    this.out = out;
     this.byteOrder = byteOrder;
 
     if (byteOrder == null) {
@@ -75,7 +72,7 @@ public class NpArraySerializer implements AutoCloseable {
     writeArray(new HalfArray(name, array));
   }
 
-  private void writeArray(AbstractArray array) throws IOException {
+  public void writeArray(AbstractArray array) throws IOException {
     prepareWriting(array.getName());
     serializers.computeIfAbsent(array.getClass(), type -> SerializerFactory.create(type, out, byteOrder)).serialize(array);
     lastUsedName = array.getName();
@@ -114,7 +111,7 @@ public class NpArraySerializer implements AutoCloseable {
 
     }
 
-    public static <T extends AbstractArray, R extends Serializer<T>> R create(Class<T> clazz, OutputStream out, ByteOrder byteOrder) {
+    public static <T extends AbstractArray, R extends Serializer<T>> R create(Class<T> clazz, RandomAccessFile out, ByteOrder byteOrder) {
       Serializer<?> serializer;
       if (clazz == IntArray.class) {
         VarHandle view = ByteOrder.BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.INT_BE.getView() : ByteArrayViews.INT_LE.getView();
@@ -127,6 +124,9 @@ public class NpArraySerializer implements AutoCloseable {
       } else if (clazz == ShortArray.class || clazz == HalfArray.class) {
         VarHandle view = ByteOrder.BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.SHORT_BE.getView() : ByteArrayViews.SHORT_LE.getView();
         serializer = new ShortSerializer(out, view);
+      } else if (clazz == CompressedIntArray.class) {
+        VarHandle view = ByteOrder.BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.INT_BE.getView() : ByteArrayViews.INT_LE.getView();
+        serializer = new CompressedIntArraySerializer(out, view);
       } else {
         throw new IllegalArgumentException(String.format("unknown type: %s", clazz));
       }

@@ -32,4 +32,7 @@ public abstract class AbstractArray {
     return dataSize;
   }
 
+  public void setDataSize(long dataSize) {
+    this.dataSize = dataSize;
+  }
 }

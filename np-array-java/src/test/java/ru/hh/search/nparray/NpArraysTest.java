@@ -1,8 +1,16 @@
 package ru.hh.search.nparray;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import static ru.hh.search.nparray.NpArrays.STRING_TO_BYTE_ORDER;
 
 import org.junit.jupiter.api.AfterEach;
@@ -11,6 +19,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import ru.hh.search.nparray.arrays.CompressedIntArray;
+import ru.hh.search.nparray.deserializers.CompressedIntArrayDeserializer;
 import ru.hh.search.nparray.util.ByteArrayViews;
 
 import java.io.IOException;
@@ -408,6 +418,53 @@ public class NpArraysTest {
     }
   }
 
+  @ParameterizedTest()
+  @MethodSource("compressedDataArguments")
+  public void compressedIntegerArrayTest(String order, List<int[]> ints) throws IOException {
+    try (var serializer = new NpArraySerializer(tempFilePath, STRING_TO_BYTE_ORDER.get(order))) {
+      serializer.writeArray(CompressedIntArray.ofWithCopy("compressed_int_array", ints));
+    }
+
+    try (var deserializer = new NpArrayDeserializer(tempFilePath)) {
+      var data = deserializer.getCompressedIntArray("compressed_int_array");
+      for (int i = 0; i < data.size(); i++) {
+        int[] expectedIntArray = ints.get(i);
+        int[] compressedData = data.get(i);
+        int uncompressedArraySize = compressedData[0];
+        int compressedArraySize = compressedData.length - 1;
+        int[] compressedArray = Arrays.copyOfRange(compressedData, 1, compressedData.length);
+        var actualIntArray = CompressedIntArrayDeserializer.deserialize(uncompressedArraySize, compressedArray);
+        assertArrayEquals(expectedIntArray, actualIntArray);
+      }
+    }
+  }
+
+  private static Stream<Arguments> compressedDataArguments() {
+    return Stream.of(
+            Arguments.of("<", generateListOfSortedIntArrays(500, 200)),
+            Arguments.of(">", generateListOfSortedIntArrays(500, 200)),
+            Arguments.of(">", List.of(new int[0])),
+            Arguments.of("<", List.of(new int[0])),
+            Arguments.of(">", List.of(new int[] {0, 0, 0, 0})),
+            Arguments.of("<", List.of(new int[] {0, 0, 0, 0})),
+            Arguments.of("<", List.of(new int[] {-2, -1, 0})),
+            Arguments.of(">", List.of(new int[] {-2, -1, 0}))
+    );
+  }
+
+  @Test
+  public void compressedIntegerArrayTestWhenError() throws IOException {
+    var ints = List.of(new int[]{-2, -1, -5});
+
+    try (var serializer = new NpArraySerializer(tempFilePath, STRING_TO_BYTE_ORDER.get(">"))) {
+      Assertions.assertThrows(
+              IndexOutOfBoundsException.class,
+              () -> serializer.writeArray(CompressedIntArray.ofWithCopy("compressed_int_array", ints)),
+              "As incoming array is not sorted compressed array can't be compressed"
+      );
+    }
+  }
+
   private float[][] generateArrayFloat(int column, int row, float elem) {
     float[][] floats = new float[row][column];
     for (int i = 0; i < column; i++) {
@@ -416,6 +473,19 @@ public class NpArraysTest {
       }
     }
     return floats;
+  }
+
+  private static List<int[]> generateListOfSortedIntArrays(int column, int row) {
+    List<int[]> list = new ArrayList<>();
+    for (int i = 0; i < row; i++) {
+      int[] rowArray = new int[column];
+      for (int j = 0; j < column; j++) {
+        rowArray[j] = ThreadLocalRandom.current().nextInt(-1000000, 10000000);
+      }
+      Arrays.sort(rowArray);
+      list.add(rowArray);
+    }
+    return list;
   }
 
   private int[][] generateArrayInt(int column, int row, int elem) {

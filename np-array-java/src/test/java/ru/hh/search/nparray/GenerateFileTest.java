@@ -3,6 +3,8 @@ package ru.hh.search.nparray;
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.nio.file.Paths;
+import java.util.List;
+import ru.hh.search.nparray.arrays.CompressedIntArray;
 
 public class GenerateFileTest {
   public static void main(String... args) throws IOException {
@@ -60,6 +62,10 @@ public class GenerateFileTest {
 
     try (var serializer = new NpArraySerializer(Paths.get(args[0]), ByteOrder.BIG_ENDIAN)) {
       serializer.writeArray("byte_string2", strings1);
+      serializer.writeArray(CompressedIntArray.ofWithCopy(
+              "compressed_int_array",
+              List.of(new int[] {1, 100, 101, 106}, new int[] {999, 1000, 1010, 1060}))
+      );
       serializer.writeArray("fffff1", floats1);
       serializer.writeHalfArray("h", halfs1);
       serializer.writeArray("iiiii1", ints1);
@@ -72,6 +78,10 @@ public class GenerateFileTest {
 
     try (var serializer = new NpArraySerializer(Paths.get(args[1]), ByteOrder.LITTLE_ENDIAN)) {
       serializer.writeArray("byte_string2", strings1);
+      serializer.writeArray(CompressedIntArray.ofWithCopy(
+              "compressed_int_array",
+              List.of(new int[] {1, 100, 101, 106}, new int[] {999, 1000, 1010, 1060}))
+      );
       serializer.writeArray("fffff1", floats1);
       serializer.writeHalfArray("h", halfs1);
       serializer.writeArray("iiiii1", ints1);

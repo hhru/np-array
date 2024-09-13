@@ -13,9 +13,15 @@ BIG_ENDIAN = '>'
 LITTLE_ENDIAN = '<'
 BYTE_ORDER_SIZE = 1
 
+LONG_SIZE = 8
 NUMBER_SIZE = 4
 SHORT_SIZE = 2
 STRING_TYPE = np.unicode_
+
+
+class CompressedIntArray:
+    def __init__(self, data: list[np.ndarray]):
+        self.data = data
 
 
 class TypeDescriptor(IntEnum):
@@ -24,6 +30,7 @@ class TypeDescriptor(IntEnum):
     STRING = 3
     INTEGER16 = 4
     FLOAT16 = 5
+    COMPRESSED_INTEGER = 6
 
     @classmethod
     def from_dtype(cls, dtype):

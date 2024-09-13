@@ -5,13 +5,15 @@ public class MetaArray {
   private final int columns;
   private final long size;
   private final long offset;
+  private final TypeDescriptor typeDescriptor;
   private final Object data;
 
-  public MetaArray(int rows, int columns, long size, long offset, Object data) {
+  public MetaArray(int rows, int columns, long size, long offset, TypeDescriptor typeDescriptor, Object data) {
     this.rows = rows;
     this.columns = columns;
     this.size = size;
     this.offset = offset;
+    this.typeDescriptor = typeDescriptor;
     this.data = data;
   }
 
@@ -33,5 +35,9 @@ public class MetaArray {
 
   public Object getData() {
     return data;
+  }
+
+  public TypeDescriptor getTypeDescriptor() {
+    return typeDescriptor;
   }
 }

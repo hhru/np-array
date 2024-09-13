@@ -1,10 +1,11 @@
 package ru.hh.search.nparray.serializers;
 
+import java.io.RandomAccessFile;
+import ru.hh.search.nparray.TypeDescriptor;
 import ru.hh.search.nparray.arrays.AbstractArray;
 import ru.hh.search.nparray.util.ByteArrayViews;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.lang.invoke.VarHandle;
 
 public abstract class Serializer<T extends AbstractArray> {
@@ -13,22 +14,41 @@ public abstract class Serializer<T extends AbstractArray> {
   protected final byte[] bytes4 = new byte[4];
   protected final byte[] bytes8 = new byte[8];
 
-  protected final OutputStream out;
+  protected final RandomAccessFile out;
   protected final VarHandle view;
 
-  public Serializer(OutputStream out, VarHandle view) {
+  public Serializer(RandomAccessFile out, VarHandle view) {
     this.out = out;
     this.view = view;
   }
 
-  protected abstract void writeData(T array) throws IOException;
+  protected abstract long writeData(T array) throws IOException;
 
   public void serialize(T array) throws IOException {
-    writeMetadata(array);
-    writeData(array);
+    if (array.getTypeDescriptor() == TypeDescriptor.COMPRESSED_INTEGER) {
+      long metadataPosition = out.getFilePointer();
+      writeMetadata(array);
+      long dataSize = writeData(array);
+      long endOfFilePosition = out.getFilePointer();
+      array.setDataSize(dataSize);
+      writeMetadata(metadataPosition, array);
+      out.seek(endOfFilePosition);
+    } else {
+      writeMetadata(array);
+      writeData(array);
+    }
   }
 
   private void writeMetadata(T array) throws IOException {
+    writeIntBE(array.getTypeDescriptor().getValue());
+    writeString(array.getName());
+    writeIntBE(array.getRowCount());
+    writeIntBE(array.getColumnCount());
+    writeLongBE(array.getDataSize());
+  }
+
+  private void writeMetadata(long position, T array) throws IOException {
+    out.seek(position);
     writeIntBE(array.getTypeDescriptor().getValue());
     writeString(array.getName());
     writeIntBE(array.getRowCount());
@@ -46,10 +66,11 @@ public abstract class Serializer<T extends AbstractArray> {
     out.write(bytes8);
   }
 
-  protected void writeString(String v) throws IOException {
+  protected long writeString(String v) throws IOException {
     var bytes = v.getBytes();
     int length = bytes.length;
     writeIntBE(length);
     out.write(bytes, 0, length);
+    return Integer.BYTES + length;
   }
 }

@@ -61,6 +61,16 @@ class Deserializer:
             arr.append(row)
         return np.asarray(arr, dtype=STRING_TYPE).reshape((rows, columns))
 
+    def _read_compressed_int_array(self, rows: int) -> Any:
+        arr = []
+        for i in range(rows):
+            array_len = self._read_int()
+            compressed_array_len = self._read_int()
+            row_arr = np.fromfile(self.fp, np.dtype('{}{}'.format(self.byte_order, 'i4')),
+                                  count=compressed_array_len).astype('i4')
+            arr.append(row_arr)
+        return arr
+
     def _read_current_array(self, metadata: Metadata) -> Any:
         if metadata.type_descriptor == TypeDescriptor.INTEGER:
             arr = self._read_array(metadata.rows, metadata.columns, 'i4')
@@ -72,6 +82,8 @@ class Deserializer:
             arr = self._read_array(metadata.rows, metadata.columns, 'f2')
         elif metadata.type_descriptor == TypeDescriptor.STRING:
             arr = self._read_string_array(metadata.rows, metadata.columns, metadata.data_size)
+        elif metadata.type_descriptor == TypeDescriptor.COMPRESSED_INTEGER:
+            arr = self._read_compressed_int_array(metadata.rows)
         else:
             raise ValueError('invalid type: ' + metadata.type_descriptor.value)
         return arr
