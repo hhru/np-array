@@ -228,7 +228,7 @@ public class NpArrayDeserializer implements AutoCloseable {
       int sizeUncompressed = readIntBE();
       int sizeCompressed = readIntBE();
       int totalToRead = sizeCompressed * INT_SIZE;
-      if (totalToRead > 1024) {
+      if (totalToRead > MAX_ROW_BUFFER_ELEMENTS) {
         int[] arr = new int[sizeCompressed + 1];
         arr[0] = sizeUncompressed;
         int pos = 1;
