@@ -49,11 +49,7 @@ public abstract class Serializer<T extends AbstractArray> {
 
   private void writeMetadata(long position, T array) throws IOException {
     out.seek(position);
-    writeIntBE(array.getTypeDescriptor().getValue());
-    writeString(array.getName());
-    writeIntBE(array.getRowCount());
-    writeIntBE(array.getColumnCount());
-    writeLongBE(array.getDataSize());
+    writeMetadata(array);
   }
 
   protected void writeIntBE(int v) throws IOException {

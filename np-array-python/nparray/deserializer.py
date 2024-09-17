@@ -61,7 +61,7 @@ class Deserializer:
             arr.append(row)
         return np.asarray(arr, dtype=STRING_TYPE).reshape((rows, columns))
 
-    def _read_compressed_int_array(self, rows: int) -> Any:
+    def _read_compressed_int_array(self, rows: int) -> list[np.ndarray]:
         arr = []
         for i in range(rows):
             array_len = self._read_int()

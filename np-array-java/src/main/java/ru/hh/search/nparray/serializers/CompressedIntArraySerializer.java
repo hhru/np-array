@@ -3,7 +3,6 @@ package ru.hh.search.nparray.serializers;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.lang.invoke.VarHandle;
-import java.util.Arrays;
 import me.lemire.integercompression.Composition;
 import me.lemire.integercompression.FastPFOR128;
 import me.lemire.integercompression.IntWrapper;
@@ -24,10 +23,11 @@ public class CompressedIntArraySerializer extends Serializer<CompressedIntArray>
     long dataSize = 0;
     for (int i = 0; i < array.getRowCount(); i++) {
       var uncompressedArray = data.get(i);
-      int[] compressedArray = new int[uncompressedArray.length];
+      int compressedArraySize = estimateCompressedArraySize(uncompressedArray.length);
+      int[] compressedArray = new int[compressedArraySize];
       IntWrapper uncompressedOffset = new IntWrapper(0);
       IntWrapper compressedOffset = new IntWrapper(0);
-      delta1(uncompressedArray);
+      applyDeltaEncoding(uncompressedArray);
       ic.compress(uncompressedArray, uncompressedOffset, uncompressedArray.length, compressedArray, compressedOffset);
       writeIntBE(uncompressedArray.length);
       writeIntBE(compressedOffset.intValue());
@@ -41,7 +41,19 @@ public class CompressedIntArraySerializer extends Serializer<CompressedIntArray>
     return dataSize;
   }
 
-  private static void delta1(int[] arr) {
+  private static int estimateCompressedArraySize(int sizeUncompressed) {
+    if (sizeUncompressed == 1) {
+      return 3;
+    } else if (sizeUncompressed < 10) {
+      return sizeUncompressed * 2;
+    } else if (sizeUncompressed < 150) {
+      return (int) (sizeUncompressed * 1.5);
+    } else {
+      return sizeUncompressed;
+    }
+  }
+
+  private static void applyDeltaEncoding(int[] arr) {
     for (int i = arr.length - 1; i > 0; i--) {
       arr[i] = arr[i] - arr[i - 1];
     }

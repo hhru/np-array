@@ -1,4 +1,4 @@
-from pyfastpfor import *
+from pyfastpfor import delta1, getCodec
 from struct import pack
 from typing import Any
 
@@ -60,7 +60,8 @@ class Serializer:
         for e in array.data:
             original_array = e.copy()
             array_len = len(original_array)
-            compressed_array = np.zeros(array_len, dtype=np.uint32, order='C').ravel()
+            estimated_compressed_array_len = Serializer.estimate_compressed_array_size(array_len)
+            compressed_array = np.zeros(estimated_compressed_array_len, dtype=np.uint32, order='C').ravel()
             delta1(original_array, array_len)
             compressed_array_len = codec.encodeArray(original_array, array_len, compressed_array, len(compressed_array))
             compressed_array = compressed_array[0:compressed_array_len]
@@ -70,6 +71,17 @@ class Serializer:
             data_size += NUMBER_SIZE + NUMBER_SIZE + NUMBER_SIZE * compressed_array_len
 
         return data_size
+
+    @staticmethod
+    def estimate_compressed_array_size(size_uncompressed: int) -> int:
+        if size_uncompressed == 1:
+            return 3
+        elif size_uncompressed < 10:
+            return size_uncompressed * 2
+        elif size_uncompressed < 150:
+            return int(size_uncompressed * 1.5)
+        else:
+            return size_uncompressed
 
     def _write_version_if_necessary(self) -> None:
         if self.version is not None:

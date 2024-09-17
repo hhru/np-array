@@ -448,13 +448,45 @@ public class NpArraysTest {
             Arguments.of(">", List.of(new int[] {0, 0, 0, 0})),
             Arguments.of("<", List.of(new int[] {0, 0, 0, 0})),
             Arguments.of("<", List.of(new int[] {-2, -1, 0})),
-            Arguments.of(">", List.of(new int[] {-2, -1, 0}))
+            Arguments.of(">", List.of(new int[] {-2, -1, 0})),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(1))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(2))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(3))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(4))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(5))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(10))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(100))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(300)))
     );
   }
 
+  private static int[] arrayWithMaxRangeBetweenNumbers(int arraySize) {
+    if (arraySize == 1) {
+      return new int[] {Integer.MIN_VALUE};
+    } else if (arraySize == 2) {
+      return new int[] {Integer.MIN_VALUE, Integer.MAX_VALUE};
+    } else {
+      int step = (int) ((Math.abs((long) Integer.MAX_VALUE) + Math.abs((long) Integer.MIN_VALUE)) / (arraySize - 1));
+      int[] result = new int[arraySize];
+      result[0] = Integer.MIN_VALUE;
+      int current = Integer.MIN_VALUE;
+      for (int i = 1; i < arraySize - 1; i++) {
+        current += step;
+        result[i] = current;
+      }
+      result[arraySize - 1] = Integer.MAX_VALUE;
+      return result;
+    }
+  }
+
   @Test
-  public void compressedIntegerArrayTestWhenError() throws IOException {
-    var ints = List.of(new int[]{-2, -1, -5});
+  public void unsortedCompressedIntegerArrayTestWhenError() throws IOException {
+    int size = 10_000_000;
+    int[] arr = new int[size];
+    for (int i = 0; i < size; i++) {
+      arr[i] = ThreadLocalRandom.current().nextInt();
+    }
+    var ints = List.of(arr);
 
     try (var serializer = new NpArraySerializer(tempFilePath, STRING_TO_BYTE_ORDER.get(">"))) {
       Assertions.assertThrows(

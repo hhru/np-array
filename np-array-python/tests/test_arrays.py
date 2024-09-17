@@ -6,7 +6,7 @@ import numpy as np
 from nparray import STRING_TYPE, CompressedIntArray
 from nparray.deserializer import Deserializer
 from nparray.serializer import Serializer
-from pyfastpfor import *
+from pyfastpfor import getCodec, prefixSum1
 
 
 class TestNPArrays(unittest.TestCase):
