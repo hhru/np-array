@@ -11,11 +11,13 @@ setup(
     packages=[
         'nparray'
     ],
+    install_requires=[
+        'pyfastpfor == 1.4.0'
+    ],
     test_suite='tests',
     tests_require=[
         'numpy == 1.26.4',
-        'pycodestyle == 2.5.0',
-        'pyfastpfor == 1.4.0'
+        'pycodestyle == 2.5.0'
     ],
     zip_safe=False
 )
