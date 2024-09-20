@@ -12,7 +12,7 @@ setup(
         'nparray'
     ],
     install_requires=[
-        'pyfastpfor == 1.4.0'
+        'pyfastpfor'
     ],
     test_suite='tests',
     tests_require=[
