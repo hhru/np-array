@@ -227,7 +227,7 @@ class TestNPArrays(unittest.TestCase):
         max_val = 1000000
         arr_size_1 = 300
         arr_size_2 = 10000
-        arr_new_1 = np.array(np.random.randint(min_val, max_val, arr_size_1), dtype=np.uint32).ravel()
+        arr_new_1 = np.array(np.random.randint(min_val, max_val, arr_size_1), dtype=np.int32).ravel()
         arr_new_1.sort()
         arr_new_2 = np.array(np.random.randint(min_val, max_val, arr_size_2), dtype=np.uint32).ravel()
         arr_new_2.sort()

@@ -1,4 +1,4 @@
-from pyfastpfor import getCodec
+from pyfastpfor import delta1, getCodec
 from struct import pack
 from typing import Any
 
@@ -62,7 +62,7 @@ class Serializer:
             array_len = len(original_array)
             estimated_compressed_array_len = Serializer.estimate_compressed_array_size(array_len)
             compressed_array = np.zeros(estimated_compressed_array_len, dtype=np.uint32, order='C').ravel()
-            Serializer.apply_delta_encoding(original_array)
+            delta1(original_array, array_len)
             compressed_array_len = codec.encodeArray(original_array, array_len, compressed_array, len(compressed_array))
             compressed_array = compressed_array[0:compressed_array_len]
             self.fp.write(array_len.to_bytes(NUMBER_SIZE, byteorder='big'))
@@ -71,11 +71,6 @@ class Serializer:
             data_size += NUMBER_SIZE + NUMBER_SIZE + NUMBER_SIZE * compressed_array_len
 
         return data_size
-
-    @staticmethod
-    def apply_delta_encoding(array):
-        for i in range(len(array) - 1, 0, -1):
-            array[i] -= array[i - 1]
 
     @staticmethod
     def estimate_compressed_array_size(size_uncompressed: int) -> int:
