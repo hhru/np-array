@@ -223,16 +223,12 @@ class TestNPArrays(unittest.TestCase):
         self.assertTrue(('Dimension exceeds acceptable value for: ' + name_big_array) in raise_context.exception.args)
 
     def test_compressed_integer_array(self):
-        min_val = 1000
-        max_val = 1000000
-        arr_size_1 = 300
-        arr_size_2 = 10000
-        arr_new_1 = np.array(np.random.randint(min_val, max_val, arr_size_1), dtype=np.int32).ravel()
-        arr_new_1.sort()
-        arr_new_2 = np.array(np.random.randint(min_val, max_val, arr_size_2), dtype=np.uint32).ravel()
-        arr_new_2.sort()
+        arr_size = 300
+        candidates = np.ones((2, arr_size), dtype=np.int32) * -1
+        candidates[0][arr_size - 1] = 100
+        candidates[0][arr_size - 1] = 999
 
-        arr = CompressedIntArray([arr_new_1, arr_new_2])
+        arr = CompressedIntArray(candidates)
         data = {
             'compressed_integer_array': arr
         }
@@ -245,14 +241,17 @@ class TestNPArrays(unittest.TestCase):
 
             self.assertTrue(len(result['compressed_integer_array']) == 2)
 
-            def uncompress_array(index: int, arr_size: int):
+            def uncompress_array(index: int, size: int):
                 codec = getCodec('fastpfor128')
-                arr_uncompressed = np.zeros(arr_size, dtype=np.uint32, order='C')
+                arr_uncompressed = np.zeros(size, dtype=np.uint32, order='C')
                 arr_compressed = np.array(result['compressed_integer_array'][index],
                                           copy=True, dtype=np.uint32, order='C')
                 codec.decodeArray(arr_compressed, len(arr_compressed), arr_uncompressed, len(arr_uncompressed))
                 prefixSum1(arr_uncompressed, len(arr_uncompressed))
+                arr_uncompressed = arr_uncompressed.astype(np.int32, copy=False)
                 return arr_uncompressed
 
-            self.assertTrue(np.array_equal(uncompress_array(0, arr_size_1), arr_new_1))
-            self.assertTrue(np.array_equal(uncompress_array(1, arr_size_2), arr_new_2))
+            first = uncompress_array(0, arr_size)
+            self.assertTrue(np.array_equal(first, candidates[0]))
+            second = uncompress_array(1, arr_size)
+            self.assertTrue(np.array_equal(second, candidates[1]))

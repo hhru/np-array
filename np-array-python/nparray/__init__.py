@@ -20,11 +20,8 @@ STRING_TYPE = np.unicode_
 
 
 class CompressedIntArray:
-    def __init__(self, data: list[np.ndarray]):
-        for i in range(len(data)):
-            if data[i].dtype != np.uint32:
-                data[i] = data[i].astype(np.uint32, copy=False)
-        self.data = data
+    def __init__(self, data: np.ndarray[np.int32]):
+        self.data = data.astype(np.uint32, copy=False)
 
 
 class TypeDescriptor(IntEnum):
