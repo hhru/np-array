@@ -1,7 +1,6 @@
 package ru.hh.search.nparray.arrays;
 
 import ru.hh.search.nparray.TypeDescriptor;
-
 import static ru.hh.search.nparray.arrays.IntArray.INT_SIZE;
 
 public class StringArray extends AbstractArray {

@@ -1,8 +1,5 @@
 package ru.hh.search.nparray;
 
-import ru.hh.search.nparray.util.ByteArrayViews;
-import ru.hh.search.nparray.util.CountingInputStream;
-
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -10,17 +7,20 @@ import java.io.InputStream;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import static ru.hh.search.nparray.NpArrays.BYTE_ORDER_SELECT_VERSION;
 import static ru.hh.search.nparray.NpArrays.STRING_TO_BYTE_ORDER;
 import static ru.hh.search.nparray.arrays.FloatArray.FLOAT_SIZE;
 import static ru.hh.search.nparray.arrays.IntArray.INT_SIZE;
 import static ru.hh.search.nparray.arrays.ShortArray.SHORT_SIZE;
+import ru.hh.search.nparray.util.ByteArrayViews;
+import ru.hh.search.nparray.util.CountingInputStream;
 
 public class NpArrayDeserializer implements AutoCloseable {
 
@@ -73,7 +73,8 @@ public class NpArrayDeserializer implements AutoCloseable {
       }
 
       result.put(metadata.getArrayName(),
-        new MetaArray(metadata.getRows(), metadata.getColumns(), metadata.getDataSize(), metadata.getDataOffset(), data));
+        new MetaArray(metadata.getRows(), metadata.getColumns(), metadata.getDataSize(), metadata.getDataOffset(),
+                TypeDescriptor.ofType(metadata.getTypeDescriptor()), data));
     }
     return result;
   }
@@ -216,6 +217,44 @@ public class NpArrayDeserializer implements AutoCloseable {
     return data;
   }
 
+  public List<int[]> getCompressedIntArray(String name) throws IOException {
+    prepareReading(name);
+    return (List<int[]>) readData(findTargetArrayMetadata(name, TypeDescriptor.COMPRESSED_INTEGER));
+  }
+
+  private List<int[]> getCompressedIntArray(int rows, VarHandle view) throws IOException {
+    var data = new ArrayList<int[]>(rows);
+    for (int i = 0; i < rows; i++) {
+      int sizeUncompressed = readIntBE();
+      int sizeCompressed = readIntBE();
+      int totalToRead = sizeCompressed * INT_SIZE;
+      if (totalToRead > MAX_ROW_BUFFER_ELEMENTS) {
+        int[] arr = new int[sizeCompressed + 1];
+        arr[0] = sizeUncompressed;
+        int pos = 1;
+        while(totalToRead > 0) {
+          int bytesToRead = Math.min(totalToRead, MAX_ROW_BUFFER_ELEMENTS);
+          readNBytesOrThrow(bytes, bytesToRead);
+          for (int offset = 0; offset < bytesToRead; offset += INT_SIZE) {
+            arr[pos++] = (int) view.get(bytes, offset);
+          }
+          totalToRead -= MAX_ROW_BUFFER_ELEMENTS;
+        }
+        data.add(arr);
+      } else {
+        readNBytesOrThrow(bytes, totalToRead);
+        int[] arr = new int[sizeCompressed + 1];
+        arr[0] = sizeUncompressed;
+        int pos = 1;
+        for (int offset = 0; offset < totalToRead; offset += INT_SIZE) {
+          arr[pos++] = (int) view.get(bytes, offset);
+        }
+        data.add(arr);
+      }
+    }
+    return data;
+  }
+
   private void prepareReading(String name) throws IOException {
     checkName(name);
     readHeaderIfNecessary();
@@ -299,6 +338,9 @@ public class NpArrayDeserializer implements AutoCloseable {
       return columns <= MAX_ROW_BUFFER_ELEMENTS ? getFloatArraySmallRows(rows, columns, view) : getFloatArrayLargeRows(rows, columns, view);
     } else if (type == TypeDescriptor.STRING.getValue()) {
       return getStringArray(rows, columns);
+    } else if (type == TypeDescriptor.COMPRESSED_INTEGER.getValue()) {
+      VarHandle view = ByteOrder.BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.INT_BE.getView() : ByteArrayViews.INT_LE.getView();
+      return getCompressedIntArray(rows, view);
     } else {
       throw new IllegalStateException("Incorrect type descriptor: " + type);
     }

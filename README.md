@@ -30,6 +30,10 @@ Type descriptor
 - 1 - array of int32 elements
 - 2 - array of float32 elements
 - 3 - array of string elements
+- 4 - array of int16 elements
+- 5 - array of float16 elements
+- 6 - array of compressed integers elements encoded with delta encoding and fastpfor128 compression
+
 
 Byte order: big endian
 

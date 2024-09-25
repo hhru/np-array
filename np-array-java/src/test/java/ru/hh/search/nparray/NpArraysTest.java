@@ -1,24 +1,33 @@
 package ru.hh.search.nparray;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static ru.hh.search.nparray.NpArrays.STRING_TO_BYTE_ORDER;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
-import ru.hh.search.nparray.util.ByteArrayViews;
-
 import java.io.IOException;
 import java.lang.invoke.VarHandle;
 import java.nio.ByteOrder;
+import static java.nio.ByteOrder.BIG_ENDIAN;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import static ru.hh.search.nparray.NpArrays.STRING_TO_BYTE_ORDER;
+import ru.hh.search.nparray.arrays.CompressedIntArray;
+import ru.hh.search.nparray.deserializers.CompressedIntArrayDeserializer;
+import ru.hh.search.nparray.util.ByteArrayViews;
 
 
 public class NpArraysTest {
@@ -157,8 +166,8 @@ public class NpArraysTest {
     assertEquals(15146, meta.get("5test").getOffset());
 
     byte[] bytes = Files.readAllBytes(tempFilePath);
-    VarHandle floatView = ByteOrder.BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.FLOAT_BE.getView() : ByteArrayViews.FLOAT_LE.getView();
-    VarHandle shortView = ByteOrder.BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.SHORT_BE.getView() : ByteArrayViews.SHORT_LE.getView();
+    VarHandle floatView = BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.FLOAT_BE.getView() : ByteArrayViews.FLOAT_LE.getView();
+    VarHandle shortView = BIG_ENDIAN.equals(byteOrder) ? ByteArrayViews.SHORT_BE.getView() : ByteArrayViews.SHORT_LE.getView();
     assertEquals(765.67f, (float) floatView.get(bytes, (int) meta.get("2test").getOffset()), 0.00001f);
     assertEquals((short) -224, (short) shortView.get(bytes, (int) meta.get("5test").getOffset()));
 
@@ -408,6 +417,85 @@ public class NpArraysTest {
     }
   }
 
+  @ParameterizedTest()
+  @MethodSource("compressedDataArguments")
+  public void compressedIntegerArrayTest(String order, List<int[]> ints) throws IOException {
+    try (var serializer = new NpArraySerializer(tempFilePath, STRING_TO_BYTE_ORDER.get(order))) {
+      serializer.writeArray(CompressedIntArray.ofWithCopy("compressed_int_array", ints));
+    }
+
+    try (var deserializer = new NpArrayDeserializer(tempFilePath)) {
+      var data = deserializer.getCompressedIntArray("compressed_int_array");
+      for (int i = 0; i < data.size(); i++) {
+        int[] expectedIntArray = ints.get(i);
+        int[] compressedData = data.get(i);
+        int uncompressedArraySize = compressedData[0];
+        int compressedArraySize = compressedData.length - 1;
+        int[] compressedArray = Arrays.copyOfRange(compressedData, 1, compressedData.length);
+        var actualIntArray = CompressedIntArrayDeserializer.deserialize(uncompressedArraySize, compressedArray);
+        assertArrayEquals(expectedIntArray, actualIntArray);
+      }
+    }
+  }
+
+  private static Stream<Arguments> compressedDataArguments() {
+    return Stream.of(
+            Arguments.of("<", generateListOfSortedIntArrays(500, 200)),
+            Arguments.of(">", generateListOfSortedIntArrays(500, 200)),
+            Arguments.of(">", List.of(new int[0])),
+            Arguments.of("<", List.of(new int[0])),
+            Arguments.of(">", List.of(new int[] {0, 0, 0, 0})),
+            Arguments.of("<", List.of(new int[] {0, 0, 0, 0})),
+            Arguments.of("<", List.of(new int[] {-2, -1, 0})),
+            Arguments.of(">", List.of(new int[] {-2, -1, 0})),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(1))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(2))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(3))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(4))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(5))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(10))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(100))),
+            Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(300)))
+    );
+  }
+
+  private static int[] arrayWithMaxRangeBetweenNumbers(int arraySize) {
+    if (arraySize == 1) {
+      return new int[] {Integer.MIN_VALUE};
+    } else if (arraySize == 2) {
+      return new int[] {Integer.MIN_VALUE, Integer.MAX_VALUE};
+    } else {
+      int step = (int) ((Math.abs((long) Integer.MAX_VALUE) + Math.abs((long) Integer.MIN_VALUE)) / (arraySize - 1));
+      int[] result = new int[arraySize];
+      result[0] = Integer.MIN_VALUE;
+      int current = Integer.MIN_VALUE;
+      for (int i = 1; i < arraySize - 1; i++) {
+        current += step;
+        result[i] = current;
+      }
+      result[arraySize - 1] = Integer.MAX_VALUE;
+      return result;
+    }
+  }
+
+  @Test
+  public void unsortedCompressedIntegerArrayTestWhenError() throws IOException {
+    int size = 10_000_000;
+    int[] arr = new int[size];
+    for (int i = 0; i < size; i++) {
+      arr[i] = ThreadLocalRandom.current().nextInt();
+    }
+    var ints = List.of(arr);
+
+    try (var serializer = new NpArraySerializer(tempFilePath, STRING_TO_BYTE_ORDER.get(">"))) {
+      Assertions.assertThrows(
+              IndexOutOfBoundsException.class,
+              () -> serializer.writeArray(CompressedIntArray.ofWithCopy("compressed_int_array", ints)),
+              "As incoming array is not sorted compressed array can't be compressed"
+      );
+    }
+  }
+
   private float[][] generateArrayFloat(int column, int row, float elem) {
     float[][] floats = new float[row][column];
     for (int i = 0; i < column; i++) {
@@ -416,6 +504,19 @@ public class NpArraysTest {
       }
     }
     return floats;
+  }
+
+  private static List<int[]> generateListOfSortedIntArrays(int column, int row) {
+    List<int[]> list = new ArrayList<>();
+    for (int i = 0; i < row; i++) {
+      int[] rowArray = new int[column];
+      for (int j = 0; j < column; j++) {
+        rowArray[j] = ThreadLocalRandom.current().nextInt(-1000000, 10000000);
+      }
+      Arrays.sort(rowArray);
+      list.add(rowArray);
+    }
+    return list;
   }
 
   private int[][] generateArrayInt(int column, int row, int elem) {
