@@ -3,9 +3,10 @@ import tempfile
 import unittest
 import numpy as np
 
-from nparray import STRING_TYPE
+from nparray import STRING_TYPE, CompressedIntArray
 from nparray.deserializer import Deserializer
 from nparray.serializer import Serializer
+from pyfastpfor import getCodec, prefixSum1
 
 
 class TestNPArrays(unittest.TestCase):
@@ -220,3 +221,37 @@ class TestNPArrays(unittest.TestCase):
             with Serializer(filename) as serializer:
                 serializer.serialize(**data)
         self.assertTrue(('Dimension exceeds acceptable value for: ' + name_big_array) in raise_context.exception.args)
+
+    def test_compressed_integer_array(self):
+        arr_size = 300
+        candidates = np.ones((2, arr_size), dtype=np.int32) * -1
+        candidates[0][arr_size - 1] = 100
+        candidates[0][arr_size - 1] = 999
+
+        arr = CompressedIntArray(candidates)
+        data = {
+            'compressed_integer_array': arr
+        }
+        _, filename = tempfile.mkstemp()
+        with Serializer(filename) as serializer:
+            serializer.serialize(**data)
+
+        with Deserializer(filename) as deserializer:
+            result = deserializer.deserialize()
+
+            self.assertTrue(len(result['compressed_integer_array']) == 2)
+
+            def uncompress_array(index: int, size: int):
+                codec = getCodec('fastpfor128')
+                arr_uncompressed = np.zeros(size, dtype=np.uint32, order='C')
+                arr_compressed = np.array(result['compressed_integer_array'][index],
+                                          copy=True, dtype=np.uint32, order='C')
+                codec.decodeArray(arr_compressed, len(arr_compressed), arr_uncompressed, len(arr_uncompressed))
+                prefixSum1(arr_uncompressed, len(arr_uncompressed))
+                arr_uncompressed = arr_uncompressed.astype(np.int32, copy=False)
+                return arr_uncompressed
+
+            first = uncompress_array(0, arr_size)
+            self.assertTrue(np.array_equal(first, candidates[0]))
+            second = uncompress_array(1, arr_size)
+            self.assertTrue(np.array_equal(second, candidates[1]))
