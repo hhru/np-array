@@ -13,7 +13,7 @@ setup(
         'nparray'
     ],
     install_requires=[
-        'pyfastpfor == 1.4.0'
+        'pyfastpfor @ git+https://github.com/1ou/PyFastPFor.git@master#subdirectory=python_bindings'
     ],
     test_suite='tests',
     tests_require=[
