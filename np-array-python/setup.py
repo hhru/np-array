@@ -1,8 +1,10 @@
 # coding=utf-8
+import os
 
 from setuptools import setup
 from version import version
 
+path_to_my_project = "/home/ou/work/np-array/np-array-python/libs/pyfastpfor"
 
 setup(
     name='nparray',
@@ -13,7 +15,7 @@ setup(
         'nparray'
     ],
     install_requires=[
-        'pyfastpfor == 1.4.0'
+        f"pyfastpfor @ file://localhost/{os.getcwd()}/libs/pyfastpfor-1.4.1-cp39-cp39-linux_x86_64.whl"
     ],
     test_suite='tests',
     tests_require=[
