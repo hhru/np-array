@@ -444,10 +444,10 @@ public class NpArraysTest {
             Arguments.of(">", generateListOfSortedIntArrays(500, 200)),
             Arguments.of(">", List.of(new int[0])),
             Arguments.of("<", List.of(new int[0])),
-            Arguments.of(">", List.of(new int[] {0, 0, 0, 0})),
-            Arguments.of("<", List.of(new int[] {0, 0, 0, 0})),
-            Arguments.of("<", List.of(new int[] {-2, -1, 0})),
-            Arguments.of(">", List.of(new int[] {-2, -1, 0})),
+            Arguments.of(">", List.of(new int[]{0, 0, 0, 0})),
+            Arguments.of("<", List.of(new int[]{0, 0, 0, 0})),
+            Arguments.of("<", List.of(new int[]{-2, -1, 0})),
+            Arguments.of(">", List.of(new int[]{-2, -1, 0})),
             Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(1))),
             Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(2))),
             Arguments.of(">", List.of(arrayWithMaxRangeBetweenNumbers(3))),
@@ -461,9 +461,9 @@ public class NpArraysTest {
 
   private static int[] arrayWithMaxRangeBetweenNumbers(int arraySize) {
     if (arraySize == 1) {
-      return new int[] {Integer.MIN_VALUE};
+      return new int[]{Integer.MIN_VALUE};
     } else if (arraySize == 2) {
-      return new int[] {Integer.MIN_VALUE, Integer.MAX_VALUE};
+      return new int[]{Integer.MIN_VALUE, Integer.MAX_VALUE};
     } else {
       int step = (int) ((Math.abs((long) Integer.MAX_VALUE) + Math.abs((long) Integer.MIN_VALUE)) / (arraySize - 1));
       int[] result = new int[arraySize];

@@ -1,13 +1,13 @@
 package ru.hh.search.nparray.serializers;
 
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.OutputStream;
 import java.lang.invoke.VarHandle;
 import ru.hh.search.nparray.arrays.ShortArray;
 
 public class ShortSerializer extends Serializer<ShortArray> {
 
-  public ShortSerializer(RandomAccessFile out, VarHandle view) {
+  public ShortSerializer(OutputStream out, VarHandle view) {
     super(out, view);
   }
 

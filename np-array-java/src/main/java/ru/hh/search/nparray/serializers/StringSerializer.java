@@ -1,12 +1,12 @@
 package ru.hh.search.nparray.serializers;
 
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.OutputStream;
 import ru.hh.search.nparray.arrays.StringArray;
 
 public class StringSerializer extends Serializer<StringArray> {
 
-  public StringSerializer(RandomAccessFile out) {
+  public StringSerializer(OutputStream out) {
     super(out, null);
   }
 

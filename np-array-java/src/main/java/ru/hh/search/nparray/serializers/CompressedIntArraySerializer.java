@@ -1,7 +1,7 @@
 package ru.hh.search.nparray.serializers;
 
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.OutputStream;
 import java.lang.invoke.VarHandle;
 import me.lemire.integercompression.Composition;
 import me.lemire.integercompression.FastPFOR128;
@@ -12,7 +12,7 @@ import ru.hh.search.nparray.arrays.CompressedIntArray;
 
 public class CompressedIntArraySerializer extends Serializer<CompressedIntArray> {
 
-  public CompressedIntArraySerializer(RandomAccessFile out, VarHandle view) {
+  public CompressedIntArraySerializer(OutputStream out, VarHandle view) {
     super(out, view);
   }
 
