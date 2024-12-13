@@ -1,10 +1,12 @@
 package ru.hh.search.nparray.serializers;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.OutputStream;
 import java.lang.invoke.VarHandle;
 import ru.hh.search.nparray.TypeDescriptor;
 import ru.hh.search.nparray.arrays.AbstractArray;
+import ru.hh.search.nparray.arrays.CompressedIntArray;
 import ru.hh.search.nparray.util.ByteArrayViews;
 
 public abstract class Serializer<T extends AbstractArray> {
@@ -13,10 +15,10 @@ public abstract class Serializer<T extends AbstractArray> {
   protected final byte[] bytes4 = new byte[4];
   protected final byte[] bytes8 = new byte[8];
 
-  protected final RandomAccessFile out;
+  protected OutputStream out;
   protected final VarHandle view;
 
-  public Serializer(RandomAccessFile out, VarHandle view) {
+  public Serializer(OutputStream out, VarHandle view) {
     this.out = out;
     this.view = view;
   }
@@ -25,13 +27,14 @@ public abstract class Serializer<T extends AbstractArray> {
 
   public void serialize(T array) throws IOException {
     if (array.getTypeDescriptor() == TypeDescriptor.COMPRESSED_INTEGER) {
-      long metadataPosition = out.getFilePointer();
+      var byteArrayOutputStream = new ByteArrayOutputStream();
+      var compressedIntArraySerializer = new CompressedIntArraySerializer(byteArrayOutputStream, view);
+      compressedIntArraySerializer.writeData((CompressedIntArray) array);
+      var byteArray = byteArrayOutputStream.toByteArray();
+      byteArrayOutputStream.close();
+      array.setDataSize(byteArray.length);
       writeMetadata(array);
-      long dataSize = writeData(array);
-      long endOfFilePosition = out.getFilePointer();
-      array.setDataSize(dataSize);
-      writeMetadata(metadataPosition, array);
-      out.seek(endOfFilePosition);
+      writeBytes(byteArray);
     } else {
       writeMetadata(array);
       writeData(array);
@@ -46,11 +49,6 @@ public abstract class Serializer<T extends AbstractArray> {
     writeLongBE(array.getDataSize());
   }
 
-  private void writeMetadata(long position, T array) throws IOException {
-    out.seek(position);
-    writeMetadata(array);
-  }
-
   protected void writeIntBE(int v) throws IOException {
     ByteArrayViews.INT_BE.getView().set(bytes4, 0, v);
     out.write(bytes4);
@@ -59,6 +57,10 @@ public abstract class Serializer<T extends AbstractArray> {
   protected void writeLongBE(long v) throws IOException {
     ByteArrayViews.LONG_BE.getView().set(bytes8, 0, v);
     out.write(bytes8);
+  }
+
+  protected void writeBytes(byte[] bytes) throws IOException {
+    out.write(bytes);
   }
 
   protected long writeString(String v) throws IOException {

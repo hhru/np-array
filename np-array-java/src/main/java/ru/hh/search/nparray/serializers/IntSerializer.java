@@ -1,13 +1,13 @@
 package ru.hh.search.nparray.serializers;
 
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.OutputStream;
 import java.lang.invoke.VarHandle;
 import ru.hh.search.nparray.arrays.IntArray;
 
 public class IntSerializer extends Serializer<IntArray> {
 
-  public IntSerializer(RandomAccessFile out, VarHandle view) {
+  public IntSerializer(OutputStream out, VarHandle view) {
     super(out, view);
   }
 
