@@ -1,3 +1,5 @@
+from pyfastpfor import delta1, getCodec, prefixSum1
+
 import numpy as np
 
 from typing import Union, Any
@@ -11,11 +13,12 @@ def from_bytes(data):
 
 
 class Deserializer:
-    def __init__(self, filename: str):
+    def __init__(self, filename: str, uncompress_on_read: bool = False):
         self.filename = filename
         self.version = None
         self.last_used_name = None
         self.byte_order = BIG_ENDIAN
+        self.uncompress_on_read = uncompress_on_read
 
     def __enter__(self):
         self.fp = open(self.filename, 'rb')
@@ -68,8 +71,20 @@ class Deserializer:
             compressed_array_len = self._read_int()
             row_arr = np.fromfile(self.fp, np.dtype('{}{}'.format(self.byte_order, 'i4')),
                                   count=compressed_array_len).astype('i4')
-            arr.append(row_arr)
+            if self.uncompress_on_read:
+                arr.append(self._uncompress_int_array(row_arr, array_len))
+            else:
+                arr.append(row_arr)
         return arr
+
+    def _uncompress_int_array(self, arr_compressed: np.ndarray, uncompressed_size: int) -> np.ndarray:
+        codec = getCodec('fastpfor128')
+        compressed_size = len(arr_compressed)
+        arr_uncompressed = np.zeros(uncompressed_size, dtype=np.uint32, order='C')
+        arr_compressed_typed = np.array(arr_compressed, copy=False, dtype=np.uint32, order='C')
+        codec.decodeArray(arr_compressed_typed, compressed_size, arr_uncompressed, uncompressed_size)
+        prefixSum1(arr_uncompressed, uncompressed_size)
+        return arr_uncompressed.astype(np.int32, copy=False)
 
     def _read_current_array(self, metadata: Metadata) -> Any:
         if metadata.type_descriptor == TypeDescriptor.INTEGER:
