@@ -40,10 +40,10 @@ Byte order: big endian
 
 # building pyfastpfor lib
 
-Мы используем свой форк библиотеки pyfastpfor https://github.com/searchivarius/PyFastPFor/, чтобы ограничить CPU инструкции, которые 
-с++ компилятор должен использовать при компиляции кода библиотеки.
+Мы используем свой форк библиотеки pyfastpfor https://github.com/hhru/PyFastPFor, чтобы ограничить CPU инструкции, которые 
+с++ компилятор должен использовать при компиляции кода библиотеки. (можно посмотреть коммиты)
 
-Чтобы собрать .whl файл нужно скачать репозиторий pyfastpfor
+Чтобы собрать .whl файл, нужно скачать репозиторий pyfastpfor
 
 Перейти в папку: cd ./python_bindings
 
@@ -51,4 +51,4 @@ Byte order: big endian
 
 Выполнить команду сборки .whl файла: sudo /usr/local/bin/python3.9 setup.py bdist_wheel
 
-Копировать новый файл .whl в папку libs и в setup.py изменить имя файла в install_requires секции
+Копировать новый файл (он находится по пути python_bindings/dist) .whl в папку libs и в setup.py изменить имя файла в install_requires секции
