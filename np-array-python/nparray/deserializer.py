@@ -13,7 +13,7 @@ def from_bytes(data):
 
 
 class Deserializer:
-    def __init__(self, filename: str, uncompress_on_read: bool = False):
+    def __init__(self, filename: str, uncompress_on_read: bool = True):
         self.filename = filename
         self.version = None
         self.last_used_name = None
