@@ -40,10 +40,28 @@ Byte order: big endian
 
 # building pyfastpfor lib
 
-Мы используем свой форк библиотеки pyfastpfor https://github.com/hhru/PyFastPFor, чтобы ограничить CPU инструкции, которые 
-с++ компилятор должен использовать при компиляции кода библиотеки. (можно посмотреть коммиты)
+Мы используем свой форк библиотеки pyfastpfor https://forgejo.pyn.ru/hhru/PyFastPFor, чтобы ограничить CPU инструкции, которые 
+с++ компилятор должен использовать при компиляции кода библиотеки.
+Сборка с инструкцией -march=native использует все CPU инструкции доступные на машинке, где происходит сборка. Мы обычно собираем образ 
+базовый кардинала на стенде, а на стендах отличаются CPU инструкции от прода, посмотреть можно такой командой: grep flags /proc/cpuinfo -m1
+Поэтому мы ограничили их такими флагами: '-mavx2', '-mavx', '-msse4.1'
+Тут больше информации о флагах при сборке c++ кода: https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
 
-Чтобы собрать .whl файл, нужно скачать репозиторий pyfastpfor
+2 способа использования нашего форка:
+
+1. Способ через путь до git проекта (сейчас актуальный)
+
+Указываем путь в setup.py путь до нашего репозитория: 
+
+    install_requires=[
+        'pyfastpfor @ git+https://forgejo.pyn.ru/hhru/PyFastPFor.git@master#subdirectory=python_bindings'
+    ]
+
+Т.к. инструкции в форке уже ограничены всё по умолчанию подхватится
+
+2. Способ через .whl файл
+
+Чтобы собрать .whl файл, нужно скачать репозиторий pyfastpfor https://forgejo.pyn.ru/hhru/PyFastPFor/
 
 Перейти в папку: cd ./python_bindings
 
@@ -51,4 +69,9 @@ Byte order: big endian
 
 Выполнить команду сборки .whl файла: sudo /usr/local/bin/python3.9 setup.py bdist_wheel
 
-Копировать новый файл (он находится по пути python_bindings/dist) .whl в папку libs и в setup.py изменить имя файла в install_requires секции
+Копировать новый файл (он находится по пути python_bindings/dist) .whl в папку libs и в setup.py использовать в таком виде зависимость:
+
+    install_requires=[
+        f"pyfastpfor @ file://localhost/{os.getcwd()}/libs/pyfastpfor-1.4.1-cp39-cp39-linux_x86_64.whl"
+    ],
+
