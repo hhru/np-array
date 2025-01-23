@@ -233,7 +233,7 @@ class TestNPArrays(unittest.TestCase):
         with Serializer(filename) as serializer:
             serializer.serialize(**data)
 
-        with Deserializer(filename) as deserializer:
+        with Deserializer(filename, uncompress_on_read=False) as deserializer:
             result = deserializer.deserialize()
 
             self.assertTrue(len(result['compressed_integer_array']) == 2)

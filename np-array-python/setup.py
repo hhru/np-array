@@ -1,5 +1,4 @@
 # coding=utf-8
-import os
 
 from setuptools import setup
 from version import version
@@ -13,7 +12,7 @@ setup(
         'nparray'
     ],
     install_requires=[
-        'pyfastpfor @ git+https://github.com/1ou/PyFastPFor.git@master#subdirectory=python_bindings'
+        'pyfastpfor @ git+https://forgejo.pyn.ru/hhru/PyFastPFor.git@master#subdirectory=python_bindings'
     ],
     test_suite='tests',
     tests_require=[
